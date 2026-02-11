@@ -95,6 +95,12 @@ public class Profile {
         this.vehiclePhotoUrl = vehiclePhotoUrl;
     }
 
+    @Column(name = "total_earnings")
+    private java.math.BigDecimal totalEarnings = java.math.BigDecimal.ZERO;
+
+    @Column(name = "is_top_seller")
+    private Boolean isTopSeller = false;
+
     public String getVehiclePlatePhotoUrl() {
         return vehiclePlatePhotoUrl;
     }

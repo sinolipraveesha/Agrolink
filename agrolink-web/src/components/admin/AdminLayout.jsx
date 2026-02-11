@@ -13,7 +13,8 @@ import {
     X,
     ShieldCheck,
     BarChart3,
-    Sprout
+    Sprout,
+    LifeBuoy
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -35,6 +36,7 @@ export default function AdminLayout() {
         { path: '/admin/orders', label: 'Order Management', icon: ShoppingBag },
         { path: '/admin/farmers-shop', label: 'Farmers Shop', icon: Sprout },
         { path: '/admin/logistics', label: 'Live Logistics Map', icon: Map },
+        { path: '/admin/support', label: 'Support Tickets', icon: LifeBuoy },
         { path: '/admin/settings', label: 'System Settings', icon: Settings },
     ];
 

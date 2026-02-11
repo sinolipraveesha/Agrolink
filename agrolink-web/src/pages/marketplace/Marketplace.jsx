@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { ArrowLeft, ShoppingCart, Search, Filter, Leaf } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Search, Filter, Leaf, Star, Crown } from 'lucide-react';
+
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 
@@ -143,17 +144,26 @@ export default function Marketplace() {
                                     <h3 className="text-lg font-bold text-gray-800 mb-1">{product.name}</h3>
                                     <p className="text-sm text-gray-500 mb-2 line-clamp-2">{product.description || 'No description available'}</p>
 
-                                    {/* Seller Rating */}
+                                    {/* Seller Rating & Badge */}
                                     {product.farmer && (
-                                        <div className="flex items-center gap-2 mb-3 bg-gray-50 px-2 py-1 rounded-lg w-fit">
-                                            <span className="text-xs font-bold text-gray-600">
-                                                By {product.farmer.fullName || product.farmer.email?.split('@')[0] || 'Farmer'}
-                                            </span>
-                                            {product.farmer.rating > 0 && (
-                                                <div className="flex items-center gap-0.5">
-                                                    <Star className="h-3 w-3 text-yellow-400 fill-current" />
-                                                    <span className="text-xs font-bold text-gray-700">{product.farmer.rating.toFixed(1)}</span>
-                                                </div>
+                                        <div className="flex flex-wrap items-center gap-2 mb-3">
+                                            <div className="flex items-center gap-2 bg-gray-50 px-2 py-1 rounded-lg">
+                                                <span className="text-xs font-bold text-gray-600">
+                                                    By {product.farmer.fullName || product.farmer.email?.split('@')[0] || 'Farmer'}
+                                                </span>
+                                                {product.farmer.rating > 0 && (
+                                                    <div className="flex items-center gap-0.5">
+                                                        <Star className="h-3 w-3 text-yellow-400 fill-current" />
+                                                        <span className="text-xs font-bold text-gray-700">{product.farmer.rating.toFixed(1)}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {product.farmer.isTopSeller && (
+                                                <span className="bg-yellow-100 text-yellow-700 text-[10px] font-bold px-2 py-1 rounded-full border border-yellow-200 flex items-center gap-1">
+                                                    <Crown className="h-3 w-3 fill-yellow-500 text-yellow-500" />
+                                                    Top Seller
+                                                </span>
                                             )}
                                         </div>
                                     )}

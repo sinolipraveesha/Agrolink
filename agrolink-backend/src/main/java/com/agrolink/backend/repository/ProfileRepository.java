@@ -16,4 +16,6 @@ public interface ProfileRepository extends JpaRepository<Profile, UUID> {
     List<Profile> findByStatusIn(List<UserStatus> statuses);
 
     List<Profile> findByRoleAndRatingGreaterThanEqual(UserRole role, Double rating);
+
+    List<Profile> findByRole(String role);
 }

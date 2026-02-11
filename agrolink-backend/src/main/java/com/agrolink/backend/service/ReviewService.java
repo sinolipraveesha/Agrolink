@@ -78,6 +78,20 @@ public class ReviewService {
 
         Profile profile = profileRepository.findById(profileId).orElseThrow();
         profile.setRating(average);
+
+        // Check Top Seller Status
+        // Only for FARMER role (though logic is generic, request specifically mentioned
+        // farmers)
+        if (profile.getRole() == com.agrolink.backend.model.UserRole.farmer) {
+            int orders = profile.getTotalOrders() != null ? profile.getTotalOrders() : 0;
+            java.math.BigDecimal earnings = profile.getTotalEarnings() != null ? profile.getTotalEarnings()
+                    : java.math.BigDecimal.ZERO;
+
+            boolean isTopSeller = orders >= 100 && average >= 4.8
+                    && earnings.compareTo(new java.math.BigDecimal("100000")) >= 0;
+            profile.setIsTopSeller(isTopSeller);
+        }
+
         profileRepository.save(profile);
     }
 

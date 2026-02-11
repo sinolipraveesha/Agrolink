@@ -38,9 +38,38 @@ public class OrderService {
 
     public Order updateStatus(UUID id, OrderStatus status) {
         return orderRepository.findById(id).map(order -> {
+            OrderStatus oldStatus = order.getStatus();
             order.setStatus(status);
-            return orderRepository.save(order);
+            Order savedOrder = orderRepository.save(order);
+
+            // If status changed to delivered
+            if (status == OrderStatus.delivered && oldStatus != OrderStatus.delivered) {
+                com.agrolink.backend.model.Profile farmer = order.getFarmer();
+                if (farmer != null) {
+                    Integer currentOrders = farmer.getTotalOrders() != null ? farmer.getTotalOrders() : 0;
+                    farmer.setTotalOrders(currentOrders + 1);
+
+                    java.math.BigDecimal currentEarnings = farmer.getTotalEarnings() != null ? farmer.getTotalEarnings()
+                            : java.math.BigDecimal.ZERO;
+                    farmer.setTotalEarnings(currentEarnings.add(order.getTotalAmount()));
+
+                    updateTopSellerStatus(farmer);
+                    profileRepository.save(farmer);
+                }
+            }
+            return savedOrder;
         }).orElse(null);
+    }
+
+    private void updateTopSellerStatus(com.agrolink.backend.model.Profile farmer) {
+        int orders = farmer.getTotalOrders() != null ? farmer.getTotalOrders() : 0;
+        double rating = farmer.getRating() != null ? farmer.getRating() : 0.0;
+        java.math.BigDecimal earnings = farmer.getTotalEarnings() != null ? farmer.getTotalEarnings()
+                : java.math.BigDecimal.ZERO;
+
+        boolean isTopSeller = orders >= 100 && rating >= 4.8
+                && earnings.compareTo(new java.math.BigDecimal("100000")) >= 0;
+        farmer.setIsTopSeller(isTopSeller);
     }
 
     public Order farmerAcceptOrder(UUID orderId, Double lat, Double lon) {
@@ -153,4 +182,5 @@ public class OrderService {
             return orderRepository.save(order);
         }).orElseThrow(() -> new RuntimeException("Order not found"));
     }
+
 }

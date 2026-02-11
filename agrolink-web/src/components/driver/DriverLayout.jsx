@@ -9,7 +9,8 @@ import {
     LogOut,
     Menu,
     X,
-    LayoutDashboard
+    LayoutDashboard,
+    LifeBuoy
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import NotificationDropdown from '../common/NotificationDropdown';
@@ -72,6 +73,7 @@ export default function DriverLayout() {
         { path: '/driver/active-trip', label: 'Active Trip', icon: Navigation },
         { path: '/driver/wallet', label: 'My Wallet', icon: Wallet },
         { path: '/driver/vehicle', label: 'Vehicle Profile', icon: Truck },
+        { path: '/driver/support', label: 'Driver Support', icon: LifeBuoy },
         { path: '/driver/profile', label: 'My Profile', icon: User },
     ];
 

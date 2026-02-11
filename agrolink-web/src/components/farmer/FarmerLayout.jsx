@@ -12,6 +12,7 @@ import {
     Menu,
     X,
     Sprout,
+    LifeBuoy,
     Bell
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
@@ -90,6 +91,7 @@ export default function FarmerLayout() {
         { path: '/farmer/transport', label: 'Transport', icon: Truck },
         { path: '/farmer/wallet', label: 'My Wallet', icon: Wallet },
         { path: '/farmer/insights', label: 'Market Insights', icon: TrendingUp },
+        { path: '/farmer/support', label: 'Support', icon: LifeBuoy },
         { path: '/farmer/profile', label: 'Profile', icon: User },
     ];
 
