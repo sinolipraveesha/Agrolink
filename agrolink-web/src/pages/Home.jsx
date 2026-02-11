@@ -48,13 +48,13 @@ export default function Home() {
       <nav className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-sm text-gray-800 z-50 shadow-sm border-b border-gray-100">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center space-x-2">
+          <a href="/" className="flex items-center space-x-2">
             <span className="text-2xl font-bold tracking-tight text-[#1a7935]">AgroLink</span>
-          </div>
+          </a>
 
           {/* Desktop Menu */}
-          <div className="hidden md:flex items-center space-x-8">
-            <a href="/" className="hover:text-[#1a7935] transition-colors font-medium">Home</a>
+          <div className="hidden md:flex items-center space-x-8 ml-8">
+            <a href="/marketplace" className="hover:text-[#1a7935] transition-colors font-medium">Farmers Shop</a>
             <a href="#marketplace" className="hover:text-[#1a7935] transition-colors font-medium">Marketplace</a>
             <a href="#" className="hover:text-[#1a7935] transition-colors font-medium">Categories</a>
             <a href="#" className="hover:text-[#1a7935] transition-colors font-medium">About</a>
@@ -206,7 +206,7 @@ export default function Home() {
                 />
                 <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-500" />
               </div>
-              <a href="/" className="block py-2 border-b border-gray-100 hover:text-[#1a7935]">Home</a>
+              <a href="/marketplace" className="block py-2 border-b border-gray-100 hover:text-[#1a7935]">Farmers Shop</a>
               <a href="#marketplace" className="block py-2 border-b border-gray-100 hover:text-[#1a7935]">Marketplace</a>
               <a href="#" className="block py-2 border-b border-gray-100 hover:text-[#1a7935]">Categories</a>
               <a href="#" className="block py-2 border-b border-gray-100 hover:text-[#1a7935]">About</a>

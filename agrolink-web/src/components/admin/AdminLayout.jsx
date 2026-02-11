@@ -12,7 +12,8 @@ import {
     Menu,
     X,
     ShieldCheck,
-    BarChart3
+    BarChart3,
+    Sprout
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -32,6 +33,7 @@ export default function AdminLayout() {
         { path: '/admin/users', label: 'User Management', icon: Users },
         { path: '/admin/products', label: 'Product Review', icon: CheckSquare },
         { path: '/admin/orders', label: 'Order Management', icon: ShoppingBag },
+        { path: '/admin/farmers-shop', label: 'Farmers Shop', icon: Sprout },
         { path: '/admin/logistics', label: 'Live Logistics Map', icon: Map },
         { path: '/admin/settings', label: 'System Settings', icon: Settings },
     ];
@@ -62,8 +64,8 @@ export default function AdminLayout() {
                             key={item.path}
                             onClick={() => navigate(item.path)}
                             className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${location.pathname === item.path
-                                    ? 'bg-[#1a7935] text-white shadow-md'
-                                    : 'text-gray-300 hover:bg-[#1a4a26] hover:text-white'
+                                ? 'bg-[#1a7935] text-white shadow-md'
+                                : 'text-gray-300 hover:bg-[#1a4a26] hover:text-white'
                                 }`}
                         >
                             <item.icon className="h-5 w-5" />

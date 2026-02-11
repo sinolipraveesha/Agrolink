@@ -25,6 +25,11 @@ public class BuyerRequestController {
         return requestService.getAllRequests();
     }
 
+    @GetMapping("/{id}")
+    public BuyerRequest getRequestById(@PathVariable UUID id) {
+        return requestService.getRequestById(id);
+    }
+
     @GetMapping("/buyer/{buyerId}")
     public List<BuyerRequest> getRequestsByBuyer(@PathVariable UUID buyerId) {
         return requestService.getRequestsByBuyer(buyerId);
@@ -38,5 +43,10 @@ public class BuyerRequestController {
     @PutMapping("/{id}")
     public BuyerRequest updateRequest(@PathVariable UUID id, @RequestBody BuyerRequest request) {
         return requestService.updateRequest(id, request);
+    }
+
+    @PostMapping("/{requestId}/accept/{farmerId}")
+    public com.agrolink.backend.model.Order acceptRequest(@PathVariable UUID requestId, @PathVariable UUID farmerId) {
+        return requestService.acceptRequest(requestId, farmerId);
     }
 }

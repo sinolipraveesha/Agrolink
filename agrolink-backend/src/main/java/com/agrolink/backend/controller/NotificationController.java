@@ -32,4 +32,15 @@ public class NotificationController {
             return notificationRepository.save(notification);
         }).orElse(null);
     }
+
+    @Autowired
+    private com.agrolink.backend.repository.ProfileRepository profileRepository;
+
+    @GetMapping("/debug/check-email/{email}")
+    public com.agrolink.backend.model.Profile checkEmail(@PathVariable String email) {
+        return profileRepository.findAll().stream()
+                .filter(p -> p.getEmail().equals(email))
+                .findFirst()
+                .orElse(null);
+    }
 }

@@ -20,8 +20,11 @@ public class OrderItem {
     private Order order;
 
     @ManyToOne
-    @JoinColumn(name = "product_id", nullable = false)
+    @JoinColumn(name = "product_id", nullable = true)
     private Product product;
+
+    @Column(name = "custom_item_name")
+    private String customItemName;
 
     @Column(nullable = false)
     private BigDecimal quantity;

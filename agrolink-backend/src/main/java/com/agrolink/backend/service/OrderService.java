@@ -54,9 +54,16 @@ public class OrderService {
         }).orElse(null);
     }
 
-    public List<Order> getNearbyAvailableJobs(double driverLat, double driverLon) {
+    public List<Order> getNearbyAvailableJobs(double driverLat, double driverLon, UUID driverId) {
+        java.math.BigDecimal maxLoad = null;
+        if (driverId != null) {
+            com.agrolink.backend.model.Profile driver = profileRepository.findById(driverId).orElse(null);
+            if (driver != null) {
+                maxLoad = driver.getMaxLoadWeight();
+            }
+        }
         // Radius of 20km
-        return orderRepository.findNearbyOrders(OrderStatus.accepted.name(), driverLat, driverLon, 20.0);
+        return orderRepository.findNearbyOrders(OrderStatus.accepted.name(), driverLat, driverLon, 20.0, maxLoad);
     }
 
     @Autowired
@@ -130,6 +137,13 @@ public class OrderService {
                 java.math.BigDecimal itemTotal = product.getPrice()
                         .multiply(java.math.BigDecimal.valueOf(itemDTO.getQuantity()));
                 orderTotal = orderTotal.add(itemTotal);
+
+                // Calculate Weight
+                if (product.getWeightPerUnit() != null) {
+                    java.math.BigDecimal itemWeight = product.getWeightPerUnit()
+                            .multiply(java.math.BigDecimal.valueOf(itemDTO.getQuantity()));
+                    order.setTotalWeight(order.getTotalWeight().add(itemWeight));
+                }
             }
 
             order.setItems(orderItems);

@@ -71,4 +71,25 @@ public class ProfileController {
         }
         return ResponseEntity.notFound().build();
     }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Profile> updateProfile(@PathVariable UUID id, @RequestBody Profile updatedProfile) {
+        Profile profile = profileService.getProfile(id);
+        if (profile != null) {
+            if (updatedProfile.getLatitude() != null)
+                profile.setLatitude(updatedProfile.getLatitude());
+            if (updatedProfile.getLongitude() != null)
+                profile.setLongitude(updatedProfile.getLongitude());
+            if (updatedProfile.getFullName() != null)
+                profile.setFullName(updatedProfile.getFullName());
+            if (updatedProfile.getMaxLoadWeight() != null)
+                profile.setMaxLoadWeight(updatedProfile.getMaxLoadWeight());
+            if (updatedProfile.getVehicleType() != null)
+                profile.setVehicleType(updatedProfile.getVehicleType());
+            if (updatedProfile.getVehiclePlateNumber() != null)
+                profile.setVehiclePlateNumber(updatedProfile.getVehiclePlateNumber());
+            return ResponseEntity.ok(profileService.createProfile(profile));
+        }
+        return ResponseEntity.notFound().build();
+    }
 }

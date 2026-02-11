@@ -7,6 +7,8 @@ import { useAuth } from '../../context/AuthContext';
 
 import { useGeolocation } from '../../hooks/useGeolocation';
 
+import PayHereCheckout from '../../components/payment/PayHereCheckout';
+
 const Checkout = () => {
     const { cart, getCartTotal, clearCart } = useCart();
     const navigate = useNavigate();
@@ -21,21 +23,13 @@ const Checkout = () => {
     });
 
     const { location: gpsLocation, error: gpsError, loading: gpsLoading } = useGeolocation(true); // Auto-detect location
+    const [paymentOrder, setPaymentOrder] = useState(null); // State to trigger PayHere
 
     const totalAmount = getCartTotal();
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
     };
-
-    // PayHere Integration Logic
-    // Important: For production, hash generation MUST happen on the backend to keep the Merchant Secret safe.
-    // For this demo/testing, if using Sandbox, we might do it here or skip hash if sandbox allows (it usually requires hash).
-    // Let's assume user uses Sandbox default credential. Replace with real ones.
-    const merchantId = "121XXXX"; // Replace with your Merchant ID
-    const merchantSecret = "YOUR_MERCHANT_SECRET"; // Replace with your Merchant Secret (never expose in real app frontend)
-    // Sandbox usually works without hash check if 'hash' param is omitted? No, it needs it.
-    // I will simulate the "Pay" button submitting a form programmatically.
 
     const { user } = useAuth(); // Assuming useAuth is imported at top.
 
@@ -54,7 +48,7 @@ const Checkout = () => {
             return;
         }
 
-        const confirmPay = window.confirm(`Proceed to pay Rs. ${totalAmount} via PayHere? (Mock)`);
+        const confirmPay = window.confirm(`Proceed to pay Rs. ${totalAmount} via PayHere?`);
         if (!confirmPay) return;
 
         if (!gpsLocation) {
@@ -85,9 +79,26 @@ const Checkout = () => {
             const response = await axios.post('http://localhost:8080/api/orders/checkout', payload);
 
             if (response.status === 200) {
-                alert("Payment Successful! Order Placed.");
-                clearCart();
-                navigate('/');
+                // Instead of clearing cart immediately, we launch Payment.
+                // Note: Real-world app might optimize status to "PENDING_PAYMENT"
+                const createdOrders = response.data; // This is a List<Order>
+
+                if (createdOrders && createdOrders.length > 0) {
+                    const orderId = createdOrders[0].id;
+
+                    setPaymentOrder({
+                        orderId: orderId,
+                        amount: totalAmount, // Note: Backend re-calculates amount per order!
+                        items: cart.map(item => item.name).join(", "),
+                        customerDetails: formData
+                    });
+
+                    // Clear cart locally as order is created in DB (waiting for payment)
+                    clearCart();
+                } else {
+                    alert("Order created but no details returned. Please check profile.");
+                    navigate('/');
+                }
             }
         } catch (error) {
             console.error("Order placement failed", error);
@@ -96,13 +107,13 @@ const Checkout = () => {
     };
 
     React.useEffect(() => {
-        if (cart.length === 0) {
+        if (cart.length === 0 && !paymentOrder) { // Only redirect if not paying
             navigate('/cart');
         }
-    }, [cart, navigate]);
+    }, [cart, navigate, paymentOrder]);
 
-    if (cart.length === 0) {
-        return null; // Or a loading spinner/message, but null is fine as we redirect.
+    if (cart.length === 0 && !paymentOrder) {
+        return null;
     }
 
     return (
@@ -212,7 +223,12 @@ const Checkout = () => {
                                 </div>
                             </div>
 
-                            {/* Hidden PayHere Button Trigger (We use the main button to submit) */}
+                            <button
+                                type="submit"
+                                className="hidden"
+                                id="pay-submit-btn"
+                            >
+                            </button>
                         </form>
                     </div>
 
@@ -245,7 +261,7 @@ const Checkout = () => {
                             </div>
 
                             <button
-                                onClick={handlePayment}
+                                onClick={() => document.getElementById('pay-submit-btn').click()}
                                 className="w-full bg-[#1a7935] text-white py-4 rounded-xl font-bold hover:bg-[#145d29] transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-900/10"
                             >
                                 <CreditCard className="h-5 w-5" />
@@ -259,6 +275,14 @@ const Checkout = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* Render PayHere Checkout Overlay Component when payment is initiated */}
+                {paymentOrder && (
+                    <PayHereCheckout
+                        {...paymentOrder}
+                        onDismiss={() => setPaymentOrder(null)}
+                    />
+                )}
             </div>
         </div>
     );

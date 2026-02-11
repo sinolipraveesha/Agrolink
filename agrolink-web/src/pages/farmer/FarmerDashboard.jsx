@@ -195,13 +195,13 @@ export default function FarmerDashboard() {
                                                 }
                                             </div>
                                             <div className="flex-1">
-                                                <p className="font-bold text-gray-800">{item.product?.name}</p>
+                                                <p className="font-bold text-gray-800">{item.product?.name || item.customItemName}</p>
                                                 <p className="text-sm text-gray-500">Unit Price: Rs. {item.priceAtTime}</p>
                                             </div>
                                             <div className="text-right">
                                                 <p className="font-bold text-lg text-[#1a7935]">x{item.quantity}</p>
                                                 <p className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                                                    {item.product?.unit}
+                                                    {item.product?.unit || 'Units'}
                                                 </p>
                                             </div>
                                         </div>

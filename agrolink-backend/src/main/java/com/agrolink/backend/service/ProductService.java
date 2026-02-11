@@ -37,4 +37,25 @@ public class ProductService {
             return productRepository.save(product);
         }).orElse(null);
     }
+
+    public Product updateProduct(UUID id, Product updatedProduct) {
+        return productRepository.findById(id).map(product -> {
+            product.setName(updatedProduct.getName());
+            product.setDescription(updatedProduct.getDescription());
+            product.setPrice(updatedProduct.getPrice());
+            product.setQuantity(updatedProduct.getQuantity());
+            product.setUnit(updatedProduct.getUnit());
+            product.setImageUrl(updatedProduct.getImageUrl());
+            product.setCategory(updatedProduct.getCategory());
+            return productRepository.save(product);
+        }).orElse(null);
+    }
+
+    public void deleteProduct(UUID id) {
+        productRepository.deleteById(id);
+    }
+
+    public List<Product> getProductsByCategoryType(String type) {
+        return productRepository.findByCategory_TypeAndStatus(type, ProductStatus.approved);
+    }
 }

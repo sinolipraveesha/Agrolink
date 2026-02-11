@@ -110,7 +110,7 @@ const MyOrders = () => {
                                                 )}
                                             </div>
                                             <div className="flex-1">
-                                                <h4 className="font-bold text-gray-800">{item.product?.name}</h4>
+                                                <h4 className="font-bold text-gray-800">{item.product?.name || item.customItemName || 'Custom Item'}</h4>
                                                 <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
                                             </div>
                                             <div className="text-right">
@@ -236,7 +236,7 @@ const MyOrders = () => {
                                                 }
                                             </div>
                                             <div className="flex-1">
-                                                <p className="font-bold text-gray-800">{item.product?.name}</p>
+                                                <h4 className="font-bold text-gray-800">{item.product?.name || item.customItemName || 'Custom Item'}</h4>
                                                 <p className="text-sm text-gray-500">Unit Price: Rs. {item.priceAtTime}</p>
                                             </div>
                                             <div className="text-right">

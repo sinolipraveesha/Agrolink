@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Send, AlertCircle, MapPin } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useGeolocation } from '../../hooks/useGeolocation';
 
 export default function PostRequest() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const [loading, setLoading] = useState(false);
+    const { location: gpsLocation, error: gpsError, loading: gpsLoading } = useGeolocation(true);
     const [formData, setFormData] = useState({
         category: 'Vegetables',
         description: '',
@@ -29,6 +31,26 @@ export default function PostRequest() {
         }
 
         try {
+            // 1. Update Profile Location if available
+            if (gpsLocation) {
+                const profileUpdateResponse = await fetch(`http://localhost:8080/api/profiles/${user.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        latitude: gpsLocation.lat,
+                        longitude: gpsLocation.lng
+                    })
+                });
+
+                if (!profileUpdateResponse.ok) {
+                    console.error("Failed to update profile location");
+                    // Continue anyway, but maybe warn? For now just log.
+                } else {
+                    console.log("Profile location updated successfully");
+                }
+            }
+
+            // 2. Post Request
             const response = await fetch('http://localhost:8080/api/requests', {
                 method: 'POST',
                 headers: {
@@ -76,6 +98,24 @@ export default function PostRequest() {
                         <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
                             <Send className="w-6 h-6 text-green-600" />
                         </div>
+                    </div>
+
+                    {/* Location Status Indicator */}
+                    <div className="mb-6 p-4 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${gpsLocation ? 'bg-green-100' : 'bg-gray-200'}`}>
+                                <MapPin className={`w-4 h-4 ${gpsLocation ? 'text-green-600' : 'text-gray-500'}`} />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-gray-900">
+                                    {gpsLocation ? 'Location Detected' : gpsLoading ? 'Detecting Location...' : 'Location Unavailable'}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                    {gpsLocation ? 'Your delivery coordinates will be saved.' : 'Please enable location access for better delivery.'}
+                                </p>
+                            </div>
+                        </div>
+                        {gpsLocation && <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>}
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-6">
@@ -146,8 +186,8 @@ export default function PostRequest() {
 
                         <button
                             type="submit"
-                            disabled={loading}
-                            className="w-full bg-green-600 text-white font-bold py-4 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-200 flex items-center justify-center gap-2"
+                            disabled={loading || gpsLoading} // Disable if GPS still loading
+                            className="w-full bg-green-600 text-white font-bold py-4 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {loading ? (
                                 <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>

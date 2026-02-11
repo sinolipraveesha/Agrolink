@@ -13,4 +13,8 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     List<Product> findByStatus(ProductStatus status);
 
     List<Product> findByFarmerId(UUID farmerId);
+
+    List<Product> findByCategory_Type(String type);
+
+    List<Product> findByCategory_TypeAndStatus(String type, ProductStatus status);
 }

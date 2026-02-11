@@ -13,6 +13,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import UserVerification from './pages/admin/UserVerification';
 import ProductReview from './pages/admin/ProductReview';
 import OrderManagement from './pages/admin/OrderManagement';
+import AdminFarmersShop from './pages/admin/AdminFarmersShop';
 import LogisticsMap from './pages/admin/LogisticsMap'
 import DriverLayout from './components/driver/DriverLayout'
 import DriverDashboard from './pages/driver/DriverDashboard'
@@ -87,6 +88,7 @@ function App() {
               <Route path="verification" element={<UserVerification />} />
               <Route path="products" element={<ProductReview />} />
               <Route path="orders" element={<OrderManagement />} />
+              <Route path="farmers-shop" element={<AdminFarmersShop />} />
               <Route path="logistics" element={<LogisticsMap />} />
               <Route path="settings" element={<div className="p-10 text-gray-500">Settings Coming Soon</div>} />
             </Route>

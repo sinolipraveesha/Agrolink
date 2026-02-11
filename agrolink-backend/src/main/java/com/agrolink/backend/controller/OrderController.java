@@ -83,7 +83,8 @@ public class OrderController {
     }
 
     @GetMapping("/nearby")
-    public List<Order> getNearbyJobs(@RequestParam double lat, @RequestParam double lon) {
-        return orderService.getNearbyAvailableJobs(lat, lon);
+    public List<Order> getNearbyJobs(@RequestParam double lat, @RequestParam double lon,
+            @RequestParam(required = false) UUID driverId) {
+        return orderService.getNearbyAvailableJobs(lat, lon, driverId);
     }
 }

@@ -102,17 +102,19 @@ export default function DriverDashboard() {
                 try {
                     // For now, fetch ALL accepted orders to ensure they show up. 
                     // Later we can filter by 'nearby' if needed, but for MVP/Testing, showing all is safer.
-                    const res = await fetch(`http://localhost:8080/api/orders?status=accepted`);
+                    // Fetch Nearby Loads filters by status=accepted AND maxLoadWeight
+                    const res = await fetch(`http://localhost:8080/api/orders/nearby?lat=${currentLoc.lat}&lon=${currentLoc.lng}&driverId=${user.id}`);
 
                     if (res.ok) {
                         const orders = await res.json();
-                        console.log("Fetched accepted orders:", orders);
+                        console.log("Fetched nearby orders:", orders);
 
                         // Map Order entity to dashboard format
                         const mappedLoads = orders.map(o => ({
                             id: o.id,
-                            description: o.items ? o.items.map(i => i.product.name).join(', ') : 'Delivery',
+                            description: o.items ? o.items.map(i => i.product ? i.product.name : i.customItemName).join(', ') : 'Delivery',
                             price: o.totalAmount,
+                            weight: o.totalWeight || 0, // NEW: Weight
                             // If pickup address isn't set, use lat/long or generic
                             pickup_address: o.pickupAddress || (o.pickupLatitude ? `${o.pickupLatitude}, ${o.pickupLongitude}` : 'Farm Location'),
                             dropoff_address: o.deliveryAddress,
@@ -316,6 +318,11 @@ export default function DriverDashboard() {
                                     <div className="flex items-center gap-2">
                                         <Clock className="h-4 w-4 text-gray-400" />
                                         <span>{load.distance_km} km</span>
+                                        {load.weight > 0 && (
+                                            <span className="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded-full border border-gray-300 ml-auto">
+                                                {load.weight} kg
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
 

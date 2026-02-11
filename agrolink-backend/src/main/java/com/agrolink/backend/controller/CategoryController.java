@@ -15,7 +15,32 @@ public class CategoryController {
     private CategoryRepository categoryRepository;
 
     @GetMapping
-    public List<Category> getAllCategories() {
+    public List<Category> getAllCategories(@RequestParam(required = false) String type) {
+        if (type != null) {
+            return categoryRepository.findByType(type);
+        }
         return categoryRepository.findAll();
+    }
+
+    @PostMapping
+    public Category createCategory(@RequestBody Category category) {
+        return categoryRepository.save(category);
+    }
+
+    @PutMapping("/{id}")
+    public Category updateCategory(@PathVariable Integer id, @RequestBody Category updatedCategory) {
+        return categoryRepository.findById(id)
+                .map(category -> {
+                    category.setName(updatedCategory.getName());
+                    category.setType(updatedCategory.getType());
+                    category.setImageUrl(updatedCategory.getImageUrl());
+                    return categoryRepository.save(category);
+                })
+                .orElseThrow(() -> new RuntimeException("Category not found with id " + id));
+    }
+
+    @DeleteMapping("/{id}")
+    public void deleteCategory(@PathVariable Integer id) {
+        categoryRepository.deleteById(id);
     }
 }
