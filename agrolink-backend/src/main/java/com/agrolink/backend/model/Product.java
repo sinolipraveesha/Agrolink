@@ -20,6 +20,10 @@ public class Product {
     @Column(name = "farmer_id", nullable = false)
     private UUID farmerId;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "farmer_id", insertable = false, updatable = false)
+    private Profile farmer;
+
     @ManyToOne
     @JoinColumn(name = "category_id")
     private Category category;
@@ -37,9 +41,6 @@ public class Product {
 
     @Column(nullable = false)
     private String unit; // kg, g, pcs
-
-    @Column(name = "weight_per_unit")
-    private BigDecimal weightPerUnit = BigDecimal.ZERO; // Default to 0 if not set
 
     @Column(name = "image_url")
     private String imageUrl;

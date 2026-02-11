@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Truck, Save } from 'lucide-react';
-import axios from 'axios';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 
@@ -15,20 +14,20 @@ export default function VehicleProfile() {
 
     useEffect(() => {
         if (user?.id) {
-            // Fetch from Backend API (source of truth for orders)
-            axios.get(`http://localhost:8080/api/profiles/${user.id}`)
-                .then(res => {
-                    const data = res.data;
+            supabase.from('driver_profiles')
+                .select('*')
+                .eq('id', user.id)
+                .single()
+                .then(({ data, error }) => {
                     if (data) {
                         setVehicle({
-                            type: data.vehicleType || 'lorry',
-                            plateNumber: data.vehiclePlateNumber || '',
-                            model: data.vehicleModel || '',
-                            capacity: data.maxLoadWeight || ''
+                            type: data.vehicle_type || 'lorry',
+                            plateNumber: data.license_plate || '',
+                            model: '', // Not in DB yet
+                            capacity: '' // Not in DB yet
                         });
                     }
-                })
-                .catch(err => console.error("Error fetching profile:", err));
+                });
         }
     }, [user]);
 
@@ -39,26 +38,16 @@ export default function VehicleProfile() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            // 1. Update Backend API (Principal)
-            await axios.put(`http://localhost:8080/api/profiles/${user.id}`, {
-                vehicleType: vehicle.type,
-                vehiclePlateNumber: vehicle.plateNumber,
-                vehicleModel: vehicle.model,
-                maxLoadWeight: vehicle.capacity ? parseFloat(vehicle.capacity) : null
-            });
-
-            // 2. Update Supabase (Legacy/Backup)
             const { error } = await supabase
                 .from('driver_profiles')
                 .upsert({
                     id: user.id,
                     vehicle_type: vehicle.type,
                     license_plate: vehicle.plateNumber,
-                    // max_load: vehicle.capacity 
+                    // Store other fields if schema updated
                 });
 
-            if (error) console.error("Supabase update error:", error); // Log but don't fail if backend succeeded
-
+            if (error) throw error;
             alert("Vehicle Details Updated Successfully!");
         } catch (err) {
             console.error(err);

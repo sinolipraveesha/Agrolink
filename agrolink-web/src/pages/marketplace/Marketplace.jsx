@@ -141,7 +141,22 @@ export default function Marketplace() {
                                 {/* Content */}
                                 <div className="p-5">
                                     <h3 className="text-lg font-bold text-gray-800 mb-1">{product.name}</h3>
-                                    <p className="text-sm text-gray-500 mb-3 line-clamp-2">{product.description || 'No description available'}</p>
+                                    <p className="text-sm text-gray-500 mb-2 line-clamp-2">{product.description || 'No description available'}</p>
+
+                                    {/* Seller Rating */}
+                                    {product.farmer && (
+                                        <div className="flex items-center gap-2 mb-3 bg-gray-50 px-2 py-1 rounded-lg w-fit">
+                                            <span className="text-xs font-bold text-gray-600">
+                                                By {product.farmer.fullName || product.farmer.email?.split('@')[0] || 'Farmer'}
+                                            </span>
+                                            {product.farmer.rating > 0 && (
+                                                <div className="flex items-center gap-0.5">
+                                                    <Star className="h-3 w-3 text-yellow-400 fill-current" />
+                                                    <span className="text-xs font-bold text-gray-700">{product.farmer.rating.toFixed(1)}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
 
                                     <div className="flex justify-between items-end">
                                         <div>

@@ -52,9 +52,6 @@ public class Profile {
     @Column(name = "vehicle_plate_number")
     private String vehiclePlateNumber;
 
-    @Column(name = "max_load_weight")
-    private java.math.BigDecimal maxLoadWeight;
-
     @Column(name = "vehicle_photo_url")
     private String vehiclePhotoUrl;
 

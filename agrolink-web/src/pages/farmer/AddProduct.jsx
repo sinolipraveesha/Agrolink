@@ -27,7 +27,6 @@ export default function AddProduct() {
         price: '',
         unit: 'kg', // default
         quantity: '',
-        weight_per_unit: '',
     });
 
     const [availableCrops, setAvailableCrops] = useState([]);
@@ -112,7 +111,6 @@ export default function AddProduct() {
                 price: parseFloat(formData.price),
                 quantity: parseFloat(formData.quantity),
                 unit: formData.unit,
-                weightPerUnit: formData.unit === 'kg' ? 1.0 : (formData.unit === 'g' ? 0.001 : parseFloat(formData.weight_per_unit || 0)),
                 imageUrl: imageUrl,
                 status: 'pending' // Explicitly setting status
             };
@@ -246,24 +244,6 @@ export default function AddProduct() {
                                     className="w-full pl-12 px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#1a7935] focus:border-[#1a7935]"
                                 />
                             </div>
-
-                            {/* Weight per Unit (only for pcs) */}
-                            {formData.unit === 'pcs' && (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Approx. Weight per Piece (kg) / ඒකකයක බර</label>
-                                    <input
-                                        type="number"
-                                        name="weight_per_unit"
-                                        value={formData.weight_per_unit}
-                                        onChange={handleChange}
-                                        step="0.01"
-                                        required={formData.unit === 'pcs'}
-                                        placeholder="ex: 0.5"
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#1a7935] focus:border-[#1a7935]"
-                                    />
-                                    <p className="text-xs text-gray-500 mt-1">Required for delivery capacity calculation.</p>
-                                </div>
-                            )}
                         </div>
                     </div>
 

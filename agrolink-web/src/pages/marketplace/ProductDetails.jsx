@@ -103,12 +103,13 @@ export default function ProductDetails() {
 
                                 <div className="flex items-center gap-4 mb-6 text-sm">
                                     <div className="flex items-center text-yellow-500">
-                                        <Star className="h-4 w-4 fill-current" />
-                                        <Star className="h-4 w-4 fill-current" />
-                                        <Star className="h-4 w-4 fill-current" />
-                                        <Star className="h-4 w-4 fill-current" />
-                                        <Star className="h-4 w-4 fill-current" />
-                                        <span className="text-gray-400 ml-2">(New Seller)</span>
+                                        {[...Array(5)].map((_, i) => (
+                                            <Star
+                                                key={i}
+                                                className={`h-4 w-4 ${i < Math.round(product.farmer?.rating || 0) ? 'fill-yellow-400 text-yellow-400' : 'fill-gray-200 text-gray-200'}`}
+                                            />
+                                        ))}
+                                        <span className="text-gray-400 ml-2">({product.farmer?.rating ? product.farmer.rating : 'New Seller'})</span>
                                     </div>
                                     <span className="text-gray-300">|</span>
                                     <span className="text-gray-500 flex items-center">

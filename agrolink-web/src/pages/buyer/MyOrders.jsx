@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { Package, Truck, CheckCircle, Clock, MapPin, XCircle } from 'lucide-react';
+import ReviewModal from '../../components/common/ReviewModal';
 
 const MyOrders = () => {
     const { user } = useAuth();
@@ -32,7 +33,7 @@ const MyOrders = () => {
             case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
             case 'accepted': return 'bg-blue-100 text-blue-800 border-blue-200';
             case 'ready_to_ship': return 'bg-purple-100 text-purple-800 border-purple-200';
-            case 'shipping': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
+            case 'shipped': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
             case 'delivered': return 'bg-green-100 text-green-800 border-green-200';
             case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
             default: return 'bg-gray-100 text-gray-800 border-gray-200';
@@ -44,11 +45,31 @@ const MyOrders = () => {
             case 'pending': return <Clock className="h-4 w-4" />;
             case 'accepted': return <CheckCircle className="h-4 w-4" />;
             case 'ready_to_ship': return <Package className="h-4 w-4" />;
-            case 'shipping': return <Truck className="h-4 w-4" />;
+            case 'shipped': return <Truck className="h-4 w-4" />;
             case 'delivered': return <CheckCircle className="h-4 w-4" />;
             case 'cancelled': return <XCircle className="h-4 w-4" />;
             default: return <Clock className="h-4 w-4" />;
         }
+    };
+
+    const [reviewConfig, setReviewConfig] = useState(null);
+
+    const openReviewModal = (orderId, revieweeId, name) => {
+        setReviewConfig({
+            orderId,
+            revieweeId,
+            revieweeName: name,
+            reviewerId: user.id
+        });
+    };
+
+    const closeReviewModal = () => {
+        setReviewConfig(null);
+    };
+
+    const handleReviewSuccess = () => {
+        // Optionally refresh orders or show success message
+        closeReviewModal();
     };
 
     if (loading) return (
@@ -169,12 +190,12 @@ const MyOrders = () => {
                                 <div className="absolute left-0 top-1/2 w-full h-1 bg-gray-100 -translate-y-1/2 z-0"></div>
                                 <div className={`absolute left-0 top-1/2 h-1 bg-green-500 -translate-y-1/2 z-0 transition-all duration-1000`}
                                     style={{
-                                        width: ['pending', 'accepted', 'ready_to_ship', 'shipping', 'delivered'].indexOf(selectedOrder.status) * 25 + '%'
+                                        width: ['pending', 'accepted', 'ready_to_ship', 'shipped', 'delivered'].indexOf(selectedOrder.status) * 25 + '%'
                                     }}
                                 ></div>
                                 <div className="relative z-10 flex justify-between">
                                     {['Placed', 'Accepted', 'Driver', 'Shipped', 'Delivered'].map((step, idx) => {
-                                        const currentStepIdx = ['pending', 'accepted', 'ready_to_ship', 'shipping', 'delivered'].indexOf(selectedOrder.status);
+                                        const currentStepIdx = ['pending', 'accepted', 'ready_to_ship', 'shipped', 'delivered'].indexOf(selectedOrder.status);
                                         const isActive = idx <= currentStepIdx;
                                         return (
                                             <div key={step} className="flex flex-col items-center gap-2">
@@ -189,7 +210,7 @@ const MyOrders = () => {
                             </div>
 
                             {/* Driver Info Section */}
-                            {['ready_to_ship', 'shipping', 'delivered'].includes(selectedOrder.status) && (
+                            {['ready_to_ship', 'shipped', 'delivered'].includes(selectedOrder.status) && (
                                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-center justify-between">
                                     <div className="flex items-center gap-4">
                                         <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
@@ -201,14 +222,26 @@ const MyOrders = () => {
                                             <p className="text-sm text-gray-600">Vehicle: {selectedOrder.driver?.vehicleNumber || 'Standard Delivery'}</p>
                                         </div>
                                     </div>
-                                    <a
-                                        href={`/track?jobId=${selectedOrder.id}`}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-500/20 flex items-center gap-2"
-                                    >
-                                        <MapPin className="h-4 w-4" /> Track Live
-                                    </a>
+                                    <div className="flex gap-2">
+                                        {selectedOrder.status === 'delivered' && (
+                                            <button
+                                                onClick={() => openReviewModal(selectedOrder.id, selectedOrder.driver?.id, selectedOrder.driver?.fullName || 'Driver')}
+                                                className="bg-white text-blue-600 border border-blue-200 px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-50 shadow-sm transition-colors"
+                                            >
+                                                Review Driver
+                                            </button>
+                                        )}
+                                        {selectedOrder.status !== 'delivered' && (
+                                            <a
+                                                href={`/track?jobId=${selectedOrder.id}`}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-500/20 flex items-center gap-2"
+                                            >
+                                                <MapPin className="h-4 w-4" /> Track Live
+                                            </a>
+                                        )}
+                                    </div>
                                 </div>
                             )}
 
@@ -220,6 +253,28 @@ const MyOrders = () => {
                                         <p className="font-bold text-yellow-800">Waiting for Driver</p>
                                         <p className="text-sm text-yellow-600">Your order is ready! Searching for nearby drivers...</p>
                                     </div>
+                                </div>
+                            )}
+
+                            {/* Seller Info (For Review) */}
+                            {(selectedOrder.status === 'delivered' || selectedOrder.status === 'shipped') && selectedOrder.farmer && (
+                                <div className="bg-green-50 border border-green-100 rounded-xl p-4 flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center text-green-600">
+                                            <Package className="h-6 w-6" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-bold text-green-600 uppercase tracking-wide">Seller</p>
+                                            <p className="font-bold text-gray-800">{selectedOrder.farmer.fullName || 'Farmer'}</p>
+                                            <p className="text-sm text-gray-600">From Agrolink Network</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => openReviewModal(selectedOrder.id, selectedOrder.farmer.id, selectedOrder.farmer.fullName || 'Farmer')}
+                                        className="bg-white text-green-600 border border-green-200 px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-50 shadow-sm transition-colors"
+                                    >
+                                        Review Seller
+                                    </button>
                                 </div>
                             )}
 
@@ -268,6 +323,18 @@ const MyOrders = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {reviewConfig && (
+                <ReviewModal
+                    isOpen={!!reviewConfig}
+                    onClose={closeReviewModal}
+                    revieweeName={reviewConfig.revieweeName}
+                    orderId={reviewConfig.orderId}
+                    revieweeId={reviewConfig.revieweeId}
+                    reviewerId={reviewConfig.reviewerId}
+                    onReviewSuccess={handleReviewSuccess}
+                />
             )}
         </div>
     );

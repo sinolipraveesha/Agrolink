@@ -82,12 +82,7 @@ public class ProfileController {
                 profile.setLongitude(updatedProfile.getLongitude());
             if (updatedProfile.getFullName() != null)
                 profile.setFullName(updatedProfile.getFullName());
-            if (updatedProfile.getMaxLoadWeight() != null)
-                profile.setMaxLoadWeight(updatedProfile.getMaxLoadWeight());
-            if (updatedProfile.getVehicleType() != null)
-                profile.setVehicleType(updatedProfile.getVehicleType());
-            if (updatedProfile.getVehiclePlateNumber() != null)
-                profile.setVehiclePlateNumber(updatedProfile.getVehiclePlateNumber());
+            // Add other fields as needed
             return ResponseEntity.ok(profileService.createProfile(profile));
         }
         return ResponseEntity.notFound().build();

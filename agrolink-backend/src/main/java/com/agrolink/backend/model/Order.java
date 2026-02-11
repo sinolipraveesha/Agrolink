@@ -25,9 +25,6 @@ public class Order {
     @Column(name = "total_amount", nullable = false)
     private BigDecimal totalAmount;
 
-    @Column(name = "total_weight")
-    private BigDecimal totalWeight = BigDecimal.ZERO;
-
     @Enumerated(EnumType.STRING)
     @Column(columnDefinition = "order_status")
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)

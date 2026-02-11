@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
-import { DollarSign, ShoppingBag, Truck, TrendingUp, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { DollarSign, ShoppingBag, Truck, TrendingUp, Loader2, CheckCircle, XCircle, Star, User } from 'lucide-react';
 
 export default function FarmerDashboard() {
     const { user } = useAuth();
@@ -14,33 +14,48 @@ export default function FarmerDashboard() {
     });
     const [selectedOrder, setSelectedOrder] = useState(null);
 
+    const [reviews, setReviews] = useState([]);
+    const [averageRating, setAverageRating] = useState(0);
+
     useEffect(() => {
-        const fetchOrders = async () => {
+        const fetchData = async () => {
             if (user?.id) {
                 try {
-                    const res = await axios.get(`http://localhost:8080/api/orders?farmerId=${user.id}`);
-                    const data = Array.isArray(res.data) ? res.data : [];
-                    setOrders(data);
+                    // Fetch Orders
+                    const ordersRes = await axios.get(`http://localhost:8080/api/orders?farmerId=${user.id}`);
+                    const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : [];
+                    setOrders(ordersData);
 
                     // Calc stats
-                    const pendingCount = data.filter(o => o.status === 'pending').length;
-                    const earnings = data
+                    const pendingCount = ordersData.filter(o => o.status === 'pending').length;
+                    const earnings = ordersData
                         .filter(o => o.status === 'delivered')
                         .reduce((acc, curr) => acc + curr.totalAmount, 0);
 
                     setStats({
                         earnings,
                         pending: pendingCount,
-                        shipped: data.filter(o => ['shipping', 'delivered'].includes(o.status)).length
+                        shipped: ordersData.filter(o => ['shipping', 'delivered'].includes(o.status)).length
                     });
+
+                    // Fetch Reviews
+                    const reviewsRes = await axios.get(`http://localhost:8080/api/reviews/profile/${user.id}`);
+                    const reviewsData = Array.isArray(reviewsRes.data) ? reviewsRes.data : [];
+                    setReviews(reviewsData);
+
+                    if (reviewsData.length > 0) {
+                        const total = reviewsData.reduce((acc, r) => acc + r.rating, 0);
+                        setAverageRating(total / reviewsData.length);
+                    }
+
                 } catch (error) {
-                    console.error("Failed to load farmer orders", error);
+                    console.error("Failed to load farmer data", error);
                 } finally {
                     setLoading(false);
                 }
             }
         };
-        fetchOrders();
+        fetchData();
     }, [user]);
 
     const handleAcceptOrder = async (orderId) => {
@@ -75,6 +90,56 @@ export default function FarmerDashboard() {
                 <div className="text-sm text-gray-500">
                     {new Date().toLocaleDateString()}
                 </div>
+            </div>
+
+            {/* Client Reviews Section */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <div className="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-800">Customer Reputation</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                            <div className="flex">
+                                {[1, 2, 3, 4, 5].map((star) => (
+                                    <Star
+                                        key={star}
+                                        className={`h-5 w-5 ${star <= Math.round(averageRating) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+                                    />
+                                ))}
+                            </div>
+                            <span className="font-bold text-gray-700">{averageRating.toFixed(1)} / 5.0</span>
+                            <span className="text-gray-400 text-sm">({reviews.length} reviews)</span>
+                        </div>
+                    </div>
+                </div>
+
+                {reviews.length === 0 ? (
+                    <p className="text-gray-500 italic">No reviews yet.</p>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {reviews.slice(0, 6).map((review) => (
+                            <div key={review.id} className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="flex items-center gap-1">
+                                        {[...Array(5)].map((_, i) => (
+                                            <Star
+                                                key={i}
+                                                className={`h-3 w-3 ${i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+                                            />
+                                        ))}
+                                    </div>
+                                    <span className="text-xs text-gray-400">{new Date(review.createdAt).toLocaleDateString()}</span>
+                                </div>
+                                <p className="text-gray-600 text-sm italic">"{review.comment}"</p>
+                                <div className="mt-3 flex items-center gap-2">
+                                    <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center text-xs font-bold text-green-700">
+                                        {review.reviewer?.email?.charAt(0).toUpperCase() || 'U'}
+                                    </div>
+                                    <span className="text-xs font-bold text-gray-500">{review.reviewer?.email?.split('@')[0] || 'Anonymous'}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* Stats Grid */}

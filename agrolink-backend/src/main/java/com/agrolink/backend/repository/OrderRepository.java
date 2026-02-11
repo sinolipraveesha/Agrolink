@@ -18,14 +18,12 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
 
         List<Order> findByStatus(OrderStatus status);
 
-        @org.springframework.data.jpa.repository.Query(value = "SELECT * FROM orders o WHERE o.status = :status " +
-                        "AND (:maxLoadWeight IS NULL OR o.total_weight <= :maxLoadWeight) " +
-                        "AND (6371 * acos(cos(radians(:driverLat)) * cos(radians(o.pickup_latitude)) * " +
+        @org.springframework.data.jpa.repository.Query(value = "SELECT * FROM orders o WHERE o.status = :status AND " +
+                        "(6371 * acos(cos(radians(:driverLat)) * cos(radians(o.pickup_latitude)) * " +
                         "cos(radians(o.pickup_longitude) - radians(:driverLon)) + " +
                         "sin(radians(:driverLat)) * sin(radians(o.pickup_latitude)))) < :radiusKm", nativeQuery = true)
         List<Order> findNearbyOrders(@org.springframework.data.repository.query.Param("status") String status,
                         @org.springframework.data.repository.query.Param("driverLat") double driverLat,
                         @org.springframework.data.repository.query.Param("driverLon") double driverLon,
-                        @org.springframework.data.repository.query.Param("radiusKm") double radiusKm,
-                        @org.springframework.data.repository.query.Param("maxLoadWeight") java.math.BigDecimal maxLoadWeight);
+                        @org.springframework.data.repository.query.Param("radiusKm") double radiusKm);
 }
