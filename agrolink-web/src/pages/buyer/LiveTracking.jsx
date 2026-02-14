@@ -1,104 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
-import 'leaflet/dist/leaflet.css';
-import L from 'leaflet';
 import { Truck, MapPin, Phone, Navigation, Clock, CheckCircle } from 'lucide-react';
-import { useTrackDriver } from '../../hooks/useDriverTracking';
 import { supabase } from '../../lib/supabaseClient';
-import 'leaflet.smooth_marker_bouncing';
-
-// Fix for default Leaflet icon
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-import iconRetina from 'leaflet/dist/images/marker-icon-2x.png';
-
-let DefaultIcon = L.icon({
-    iconUrl: icon,
-    iconRetinaUrl: iconRetina,
-    shadowUrl: iconShadow,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41]
-});
-
-L.Marker.prototype.options.icon = DefaultIcon;
-
-// Custom blue icon for driver
-const driverIcon = L.divIcon({
-    className: 'custom-driver-marker',
-    html: `<div style="
-        background: #3b82f6;
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        border: 3px solid white;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        position: relative;
-    ">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="1" y="3" width="15" height="13"></rect>
-            <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
-            <circle cx="5.5" cy="18.5" r="2.5"></circle>
-            <circle cx="18.5" cy="18.5" r="2.5"></circle>
-        </svg>
-        <div style="
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: rgba(59, 130, 246, 0.3);
-            animation: pulse 2s ease-out infinite;
-        "></div>
-    </div>
-    <style>
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 0.7; }
-            100% { transform: scale(2); opacity: 0; }
-        }
-    </style>`,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16]
-});
-
-// Smooth marker animation component
-const AnimatedMarker = ({ position, icon, children }) => {
-    const markerRef = React.useRef(null);
-    const prevPositionRef = React.useRef(position);
-
-    useEffect(() => {
-        const marker = markerRef.current;
-        if (marker && prevPositionRef.current) {
-            // Smooth animation to new position
-            marker.slideTo([position.lat, position.lng], {
-                duration: 1000,
-                keepAtCenter: false
-            });
-        }
-        prevPositionRef.current = position;
-    }, [position]);
-
-    return (
-        <Marker position={[position.lat, position.lng]} icon={icon} ref={markerRef}>
-            {children}
-        </Marker>
-    );
-};
-
-// Map auto-center component
-const MapFlyTo = ({ center, zoom = 13 }) => {
-    const map = useMap();
-    useEffect(() => {
-        if (center) {
-            map.flyTo([center.lat, center.lng], zoom);
-        }
-    }, [center, zoom, map]);
-    return null;
-};
+import LiveTrackingMap from '../../components/LiveTrackingMap';
 
 export default function LiveTracking() {
     const [searchParams] = useSearchParams();
@@ -108,9 +12,6 @@ export default function LiveTracking() {
     const [job, setJob] = useState(null);
     const [driver, setDriver] = useState(null);
 
-    // Use live tracking hook
-    const { driverLocation, lastUpdated, isOnline } = useTrackDriver(driverId);
-
     // Fetch Job and Driver Details
     useEffect(() => {
         if (!jobId) return;
@@ -118,21 +19,10 @@ export default function LiveTracking() {
         const fetchData = async () => {
             try {
                 // Fetch order details from Backend (PostgreSQL)
-                const res = await fetch(`http://localhost:8080/api/orders`);
-                // Note: ideally we should have a GET /api/orders/{id} endpoint
-                // But for now we can filter from all orders or simpler, rely on passed state? 
-                // Let's assume we implement a specific fetch or just find it in the list.
-                // Or better, let's ask the controller for a specific order.
-                // Wait, OrderController doesn't have GET /api/orders/{id} specifically exposed in the snippet I saw earlier?
-                // It has getAllOrders. Let's use that and filter for now (not efficient but works for small scale).
+                // Using getAllOrders and filtering (temporary solution as discussed)
+                const allRes = await fetch(`/api/orders`);
+                const allOrders = await allRes.json();
 
-                const allRes = await fetch(`http://localhost:8080/api/orders?status=accepted`); // Try fetching accepted ones
-                // Ideally this page is used for ANY status. 
-                const allOrders1 = await allRes.json();
-                const allOrders2 = await (await fetch(`http://localhost:8080/api/orders?status=ready_to_ship`)).json();
-                const allOrders3 = await (await fetch(`http://localhost:8080/api/orders?status=shipped`)).json();
-
-                const allOrders = [...allOrders1, ...allOrders2, ...allOrders3];
                 const orderData = allOrders.find(o => o.id === jobId);
 
                 if (orderData) {
@@ -142,8 +32,8 @@ export default function LiveTracking() {
                         pickup_lat: orderData.pickupLatitude,
                         pickup_lng: orderData.pickupLongitude,
                         pickup_address: orderData.pickupAddress || 'Farm',
-                        dropoff_lat: 0, // Need to geocode delivery address or store it. For now assume it's missing or use 0
-                        dropoff_lng: 0,
+                        dropoff_lat: orderData.deliveryLatitude || 0,
+                        dropoff_lng: orderData.deliveryLongitude || 0,
                         dropoff_address: orderData.deliveryAddress,
                         driver_id: orderData.driver ? orderData.driver.id : null
                     };
@@ -152,7 +42,6 @@ export default function LiveTracking() {
                     // Fetch driver profile from Supabase if we have a driver ID
                     if (mappedJob.driver_id) {
                         try {
-                            // Try fetching with relation first
                             const { data: driverData, error } = await supabase
                                 .from('driver_profiles')
                                 .select('*, profiles(full_name, mobile_no)')
@@ -163,13 +52,10 @@ export default function LiveTracking() {
                             setDriver(driverData);
                         } catch (err) {
                             console.warn("Could not fetch driver with profile relation, falling back to simple fetch.");
-                            // Fallback if relation fails (e.g. FK issue)
-
-                            // Mock profile info if relation failed
                             setDriver({
                                 id: mappedJob.driver_id,
                                 vehicle_type: 'Unknown',
-                                vehicle_no: 'N/A',
+                                vehicle_number: 'N/A',
                                 profiles: { full_name: 'Driver', mobile_no: '' }
                             });
                         }
@@ -182,18 +68,6 @@ export default function LiveTracking() {
 
         fetchData();
     }, [jobId]);
-
-    // Ensure we have valid numbers for map center
-    const isValidCoord = (c) => c && typeof c === 'number' && !isNaN(c);
-
-    // Safely calculate map center
-    const safePickup = (job && isValidCoord(job.pickup_lat) && isValidCoord(job.pickup_lng))
-        ? { lat: job.pickup_lat, lng: job.pickup_lng }
-        : { lat: 6.9271, lng: 79.8612 }; // Default to Colombo
-
-    const mapCenter = (driverLocation && isValidCoord(driverLocation.lat) && isValidCoord(driverLocation.lng))
-        ? driverLocation
-        : safePickup;
 
     if (!job || !driver) {
         return (
@@ -220,9 +94,9 @@ export default function LiveTracking() {
                             <p className="text-sm text-gray-500 mt-1">Track your delivery in real-time</p>
                         </div>
                         <div className="flex items-center gap-3">
-                            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${isOnline ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                                <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`}></div>
-                                <span className="text-xs font-medium">{isOnline ? 'Driver Online' : 'Last seen'}</span>
+                            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-100 text-green-700`}>
+                                <div className={`w-2 h-2 rounded-full bg-green-500 animate-pulse`}></div>
+                                <span className="text-xs font-medium">Driver Online</span>
                             </div>
                         </div>
                     </div>
@@ -317,79 +191,11 @@ export default function LiveTracking() {
 
                 {/* Map */}
                 <div className="flex-1 bg-white rounded-xl shadow-sm border overflow-hidden relative">
-                    {mapCenter && (
-                        <MapContainer center={[mapCenter.lat, mapCenter.lng]} zoom={13} className="h-full w-full">
-                            <TileLayer
-                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                            />
-
-                            <MapFlyTo center={mapCenter} />
-
-                            {/* Driver Location (Live) */}
-                            {driverLocation && (
-                                <AnimatedMarker position={driverLocation} icon={driverIcon}>
-                                    <Popup>
-                                        <div className="text-center">
-                                            <p className="font-bold text-blue-600">🚚 {driver.profiles?.full_name}</p>
-                                            <p className="text-xs text-gray-500 mt-1">
-                                                {isOnline ? 'Live Location' : 'Last Known Location'}
-                                            </p>
-                                            {lastUpdated && (
-                                                <p className="text-xs text-gray-400 mt-1">
-                                                    Updated: {new Date(lastUpdated).toLocaleTimeString()}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </Popup>
-                                </AnimatedMarker>
-                            )}
-
-                            {/* Pickup Marker */}
-                            <Marker position={[job.pickup_lat, job.pickup_lng]}>
-                                <Popup>
-                                    <div>
-                                        <p className="font-bold text-green-600">📦 Pickup Location</p>
-                                        <p className="text-xs mt-1">{job.pickup_address}</p>
-                                    </div>
-                                </Popup>
-                            </Marker>
-
-                            {/* Dropoff Marker */}
-                            <Marker position={[job.dropoff_lat, job.dropoff_lng]}>
-                                <Popup>
-                                    <div>
-                                        <p className="font-bold text-red-600">🎯 Dropoff Location</p>
-                                        <p className="text-xs mt-1">{job.dropoff_address}</p>
-                                    </div>
-                                </Popup>
-                            </Marker>
-
-                            {/* Route Line */}
-                            {driverLocation && (
-                                <Polyline
-                                    positions={[
-                                        [driverLocation.lat, driverLocation.lng],
-                                        job.status === 'picked_up' || job.status === 'delivered'
-                                            ? [job.dropoff_lat, job.dropoff_lng]
-                                            : [job.pickup_lat, job.pickup_lng]
-                                    ]}
-                                    color="#1a7935"
-                                    weight={4}
-                                    opacity={0.6}
-                                    dashArray="10, 10"
-                                />
-                            )}
-                        </MapContainer>
-                    )}
-
-                    {/* Live indicator overlay */}
-                    {isOnline && (
-                        <div className="absolute top-4 left-4 bg-white px-3 py-2 rounded-lg shadow-lg border border-green-200 flex items-center gap-2 z-[1000]">
-                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                            <span className="text-sm font-medium text-gray-700">Live Tracking Active</span>
-                        </div>
-                    )}
+                    <LiveTrackingMap
+                        driverId={job.driver_id}
+                        pickupLocation={job.pickup_lat && job.pickup_lng ? { lat: job.pickup_lat, lng: job.pickup_lng } : null}
+                        dropoffLocation={job.dropoff_lat && job.dropoff_lng ? { lat: job.dropoff_lat, lng: job.dropoff_lng } : null}
+                    />
                 </div>
             </div>
         </div>

@@ -60,7 +60,7 @@ export default function SupportTicketSystem({ isAdmin = false }) {
         if (!user) return;
         try {
             setLoading(true);
-            let url = isAdmin ? 'http://localhost:8080/api/tickets' : `http://localhost:8080/api/tickets/user/${user.id}`;
+            let url = isAdmin ? '/api/tickets' : `/api/tickets/user/${user.id}`;
             const res = await axios.get(url);
             // Ensure we always set an array
             setTickets(Array.isArray(res.data) ? res.data : []);
@@ -74,7 +74,7 @@ export default function SupportTicketSystem({ isAdmin = false }) {
 
     const fetchMessages = async (ticketId) => {
         try {
-            const res = await axios.get(`http://localhost:8080/api/tickets/${ticketId}/messages`);
+            const res = await axios.get(`/api/tickets/${ticketId}/messages`);
             setMessages(res.data);
         } catch (error) {
             console.error("Failed to fetch messages", error);
@@ -84,7 +84,7 @@ export default function SupportTicketSystem({ isAdmin = false }) {
     const handleCreateTicket = async (e) => {
         e.preventDefault();
         try {
-            await axios.post('http://localhost:8080/api/tickets/create', {
+            await axios.post('/api/tickets/create', {
                 userId: user.id,
                 subject: newTicket.subject,
                 description: newTicket.description,
@@ -103,7 +103,7 @@ export default function SupportTicketSystem({ isAdmin = false }) {
         e.preventDefault();
         if (!newMessage.trim()) return;
         try {
-            await axios.post(`http://localhost:8080/api/tickets/${selectedTicket.id}/messages`, {
+            await axios.post(`/api/tickets/${selectedTicket.id}/messages`, {
                 senderId: user.id,
                 message: newMessage
             });
@@ -117,7 +117,7 @@ export default function SupportTicketSystem({ isAdmin = false }) {
     const handleDeleteMessage = async (messageId) => {
         if (!confirm("Are you sure you want to delete this message?")) return;
         try {
-            await axios.delete(`http://localhost:8080/api/tickets/messages/${messageId}?userId=${user.id}`);
+            await axios.delete(`/api/tickets/messages/${messageId}?userId=${user.id}`);
             fetchMessages(selectedTicket.id);
         } catch (error) {
             console.error("Failed to delete message", error);
@@ -128,7 +128,7 @@ export default function SupportTicketSystem({ isAdmin = false }) {
     const resolveTicket = async () => {
         if (!confirm("Are you sure you want to mark this ticket as RESOLVED?")) return;
         try {
-            await axios.put(`http://localhost:8080/api/tickets/${selectedTicket.id}/status?status=RESOLVED`);
+            await axios.put(`/api/tickets/${selectedTicket.id}/status?status=RESOLVED`);
             fetchTickets();
             setSelectedTicket(prev => ({ ...prev, status: 'RESOLVED' }));
         } catch (error) {
@@ -219,6 +219,9 @@ export default function SupportTicketSystem({ isAdmin = false }) {
                         {messages.map((msg) => {
                             const isMe = msg.sender?.id === user.id;
                             const isSupport = !isMe && (isAdmin ? msg.sender?.id !== selectedTicket.user?.id : true); // Logic isn't perfect for generic chat, usually check role
+
+                            // Debug logging
+                            console.log('Message:', msg.message, 'Sender ID:', msg.sender?.id, 'User ID:', user.id, 'isMe:', isMe);
 
                             // Better logic:
                             // If I am user, messages from me are right. Messages from others (admin) are left.

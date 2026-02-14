@@ -7,7 +7,7 @@ export default function OrderManagement() {
 
     const fetchOrders = async () => {
         try {
-            const res = await fetch('http://localhost:8080/api/orders');
+            const res = await fetch('/api/orders');
             if (res.ok) {
                 const data = await res.json();
                 // Map backend data to frontend structure
@@ -42,7 +42,7 @@ export default function OrderManagement() {
 
     const handleFarmerAccept = async (id) => {
         try {
-            const res = await fetch(`http://localhost:8080/api/orders/${id}/farmer-accept`, {
+            const res = await fetch(`/api/orders/${id}/farmer-accept`, {
                 method: 'PUT'
             });
             if (res.ok) {

@@ -12,7 +12,7 @@ const ReviewModal = ({ isOpen, onClose, revieweeName, orderId, revieweeId, revie
     React.useEffect(() => {
         if (isOpen && orderId && reviewerId && revieweeId) {
             setLoading(true);
-            axios.get(`http://localhost:8080/api/reviews?orderId=${orderId}&reviewerId=${reviewerId}&revieweeId=${revieweeId}`)
+            axios.get(`/api/reviews?orderId=${orderId}&reviewerId=${reviewerId}&revieweeId=${revieweeId}`)
                 .then(res => {
                     if (res.data) {
                         setRating(res.data.rating);
@@ -54,9 +54,9 @@ const ReviewModal = ({ isOpen, onClose, revieweeName, orderId, revieweeId, revie
             };
 
             if (isUpdate) {
-                await axios.put('http://localhost:8080/api/reviews', payload);
+                await axios.put('/api/reviews', payload);
             } else {
-                await axios.post('http://localhost:8080/api/reviews', payload);
+                await axios.post('/api/reviews', payload);
             }
             onReviewSuccess();
             onClose();

@@ -17,8 +17,8 @@ const MarketplaceSection = () => {
         const fetchData = async () => {
             try {
                 const [prodRes, catRes] = await Promise.all([
-                    axios.get('http://localhost:8080/api/products?categoryType=MARKETPLACE'),
-                    axios.get('http://localhost:8080/api/categories?type=MARKETPLACE')
+                    axios.get('/api/products?categoryType=MARKETPLACE'),
+                    axios.get('/api/categories?type=MARKETPLACE')
                 ]);
                 setProducts(prodRes.data);
                 setCategories(['All', ...catRes.data.map(c => c.name)]);

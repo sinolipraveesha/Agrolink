@@ -20,8 +20,8 @@ export default function Marketplace() {
         const fetchData = async () => {
             try {
                 const [prodRes, catRes] = await Promise.all([
-                    axios.get('http://localhost:8080/api/products?categoryType=FARMERS_SHOP'),
-                    axios.get('http://localhost:8080/api/categories?type=FARMERS_SHOP')
+                    axios.get('/api/products?categoryType=FARMERS_SHOP'),
+                    axios.get('/api/categories?type=FARMERS_SHOP')
                 ]);
                 setProducts(prodRes.data);
                 // Extract category names for the filter pills

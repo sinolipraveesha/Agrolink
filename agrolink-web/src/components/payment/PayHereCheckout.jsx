@@ -12,7 +12,7 @@ const PayHereCheckout = ({ orderId, amount, items, customerDetails, onDismiss })
     useEffect(() => {
         const fetchHash = async () => {
             try {
-                const response = await axios.get(`http://localhost:8080/api/payment/hash/${orderId}`);
+                const response = await axios.get(`/api/payment/hash/${orderId}`);
                 const data = response.data;
                 setHash(data.hash);
                 setMerchantId(data.merchant_id);
@@ -30,12 +30,11 @@ const PayHereCheckout = ({ orderId, amount, items, customerDetails, onDismiss })
         }
     }, [orderId]);
 
-    useEffect(() => {
-        if (hash && merchantId && formRef.current) {
-            // Auto-submit the form once hash is ready
+    const handlePayHereSubmit = () => {
+        if (formRef.current) {
             formRef.current.submit();
         }
-    }, [hash, merchantId]);
+    };
 
     if (error) {
         return (
@@ -56,11 +55,41 @@ const PayHereCheckout = ({ orderId, amount, items, customerDetails, onDismiss })
 
     if (loading) {
         return (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                <div className="bg-white p-6 rounded-lg shadow-xl flex flex-col items-center">
-                    <div className="w-8 h-8 border-4 border-[#1a7935] border-t-transparent rounded-full animate-spin mb-4"></div>
-                    <p className="text-gray-900 font-medium">Redirecting to PayHere...</p>
-                    <p className="text-sm text-gray-500 mt-2">Please do not close this window</p>
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] px-4">
+                <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center animate-in fade-in zoom-in duration-300">
+                    <div className="w-16 h-16 border-4 border-[#1a7935] border-t-transparent rounded-full animate-spin mb-6 mx-auto"></div>
+
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">Initializing Payment</h3>
+                    <p className="text-gray-500 text-sm mb-6 leading-relaxed">
+                        Redirecting you to the secure PayHere sandbox gateway...
+                    </p>
+
+                    {/* Choice Buttons */}
+                    <div className="pt-6 border-t border-gray-100 flex flex-col gap-3">
+                        <button
+                            onClick={handlePayHereSubmit}
+                            className="w-full py-3 bg-[#1a7935] text-white rounded-xl font-bold text-sm hover:bg-[#145d29] transition-all shadow-md"
+                        >
+                            Proceed to Pay (Sandbox)
+                        </button>
+
+                        <button
+                            onClick={() => {
+                                // Simulate successful payment redirect for testing
+                                window.location.href = `${window.location.origin}/my-orders?payment=mock_success&orderId=${orderId}`;
+                            }}
+                            className="w-full py-3 bg-blue-50 text-blue-700 rounded-xl font-bold text-sm hover:bg-blue-100 transition-all border border-blue-100"
+                        >
+                            DEBUG: Mock Success (Phone Test)
+                        </button>
+
+                        <button
+                            onClick={onDismiss}
+                            className="w-full py-2 text-gray-400 text-xs font-medium hover:text-gray-600 transition-colors"
+                        >
+                            Cancel and Go Back
+                        </button>
+                    </div>
                 </div>
             </div>
         );
@@ -74,9 +103,10 @@ const PayHereCheckout = ({ orderId, amount, items, customerDetails, onDismiss })
             className="hidden"
         >
             <input type="hidden" name="merchant_id" value={merchantId} />
-            <input type="hidden" name="return_url" value="http://localhost:5173/profile" />
-            <input type="hidden" name="cancel_url" value="http://localhost:5173/checkout" />
-            <input type="hidden" name="notify_url" value="http://localhost:8080/api/payment/notify" />
+            <input type="hidden" name="return_url" value={`${window.location.origin}/my-orders`} />
+            <input type="hidden" name="cancel_url" value={`${window.location.origin}/checkout`} />
+            {/* Note: Notify URL won't work on localhost/local network without a publictunnel like Ngrok */}
+            <input type="hidden" name="notify_url" value="/api/payment/notify" />
 
             <input type="hidden" name="order_id" value={orderId} />
             <input type="hidden" name="items" value={items} />

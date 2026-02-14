@@ -1,14 +1,14 @@
 package com.agrolink.backend.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
+
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "profiles", schema = "public")
-@Data
+
 public class Profile {
 
     @Id
@@ -107,5 +107,173 @@ public class Profile {
 
     public void setVehiclePlatePhotoUrl(String vehiclePlatePhotoUrl) {
         this.vehiclePlatePhotoUrl = vehiclePlatePhotoUrl;
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public void setId(UUID id) {
+        this.id = id;
+    }
+
+    public String getFullName() {
+        return fullName;
+    }
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public UserRole getRole() {
+        return role;
+    }
+
+    public void setRole(UserRole role) {
+        this.role = role;
+    }
+
+    public UserStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(UserStatus status) {
+        this.status = status;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
+    }
+
+    public String getNicFrontUrl() {
+        return nicFrontUrl;
+    }
+
+    public void setNicFrontUrl(String nicFrontUrl) {
+        this.nicFrontUrl = nicFrontUrl;
+    }
+
+    public String getNicBackUrl() {
+        return nicBackUrl;
+    }
+
+    public void setNicBackUrl(String nicBackUrl) {
+        this.nicBackUrl = nicBackUrl;
+    }
+
+    public String getBuyerType() {
+        return buyerType;
+    }
+
+    public void setBuyerType(String buyerType) {
+        this.buyerType = buyerType;
+    }
+
+    public String getProofPhotoUrl() {
+        return proofPhotoUrl;
+    }
+
+    public void setProofPhotoUrl(String proofPhotoUrl) {
+        this.proofPhotoUrl = proofPhotoUrl;
+    }
+
+    public String getVehicleType() {
+        return vehicleType;
+    }
+
+    public void setVehicleType(String vehicleType) {
+        this.vehicleType = vehicleType;
+    }
+
+    public String getVehicleModel() {
+        return vehicleModel;
+    }
+
+    public void setVehicleModel(String vehicleModel) {
+        this.vehicleModel = vehicleModel;
+    }
+
+    public String getVehiclePlateNumber() {
+        return vehiclePlateNumber;
+    }
+
+    public void setVehiclePlateNumber(String vehiclePlateNumber) {
+        this.vehiclePlateNumber = vehiclePlateNumber;
+    }
+
+    public Double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+
+    public Double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public Double getRating() {
+        return rating;
+    }
+
+    public void setRating(Double rating) {
+        this.rating = rating;
+    }
+
+    public Integer getTotalOrders() {
+        return totalOrders;
+    }
+
+    public void setTotalOrders(Integer totalOrders) {
+        this.totalOrders = totalOrders;
+    }
+
+    public java.math.BigDecimal getTotalEarnings() {
+        return totalEarnings;
+    }
+
+    public void setTotalEarnings(java.math.BigDecimal totalEarnings) {
+        this.totalEarnings = totalEarnings;
+    }
+
+    public Boolean getIsTopSeller() {
+        return isTopSeller;
+    }
+
+    public void setIsTopSeller(Boolean isTopSeller) {
+        this.isTopSeller = isTopSeller;
     }
 }

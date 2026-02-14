@@ -90,13 +90,13 @@ export const useGeolocation = (watch = false) => {
                 },
                 {
                     enableHighAccuracy: highAccuracy,
-                    timeout: highAccuracy ? 8000 : 15000, // Longer timeout for better chance
-                    maximumAge: 0 // Always get fresh location
+                    timeout: highAccuracy ? 15000 : 20000, // Increased timeout 
+                    maximumAge: 10000 // Allow 10s old cached location
                 }
             );
         };
 
-        makeLocationRequest();
+        makeLocationRequest(2); // Increase retries back to 2
     };
 
     useEffect(() => {

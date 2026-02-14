@@ -8,7 +8,7 @@ export default function ProductReview() {
 
     const fetchPendingProducts = async () => {
         try {
-            const res = await axios.get('http://localhost:8080/api/products/pending');
+            const res = await axios.get('/api/products/pending');
             setProducts(res.data);
         } catch (err) {
             console.error(err);
@@ -24,7 +24,7 @@ export default function ProductReview() {
     const handleStatusUpdate = async (id, status) => {
         if (!window.confirm(`Are you sure you want to ${status} this product?`)) return;
         try {
-            await axios.put(`http://localhost:8080/api/products/${id}/status?status=${status}`);
+            await axios.put(`/api/products/${id}/status?status=${status}`);
             setProducts(products.filter(p => p.id !== id));
         } catch (err) {
             alert("Error updating product");

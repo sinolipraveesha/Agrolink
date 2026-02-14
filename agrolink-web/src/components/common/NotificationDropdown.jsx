@@ -30,7 +30,7 @@ export default function NotificationDropdown({ userId }) {
 
     const fetchNotifications = async () => {
         try {
-            const response = await fetch(`http://localhost:8080/api/notifications/${userId}`);
+            const response = await fetch(`/api/notifications/${userId}`);
             if (response.ok) {
                 const data = await response.json();
                 setNotifications(data);
@@ -45,7 +45,7 @@ export default function NotificationDropdown({ userId }) {
     const markAsRead = async (id, event) => {
         event.stopPropagation(); // Prevent closing dropdown or navigating
         try {
-            await fetch(`http://localhost:8080/api/notifications/${id}/read`, {
+            await fetch(`/api/notifications/${id}/read`, {
                 method: 'PUT'
             });
             // Update local state

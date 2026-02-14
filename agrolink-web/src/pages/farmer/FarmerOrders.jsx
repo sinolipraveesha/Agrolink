@@ -21,7 +21,7 @@ export default function FarmerOrders() {
         const fetchOrders = async () => {
             if (user?.id) {
                 try {
-                    const res = await axios.get(`http://localhost:8080/api/orders?farmerId=${user.id}`);
+                    const res = await axios.get(`/api/orders?farmerId=${user.id}`);
                     setOrders(Array.isArray(res.data) ? res.data : []);
 
                     // Update selectedOrder if it exists to reflect new status
@@ -51,7 +51,7 @@ export default function FarmerOrders() {
 
         const confirmAccept = async (lat = null, lng = null) => {
             try {
-                let url = `http://localhost:8080/api/orders/${orderId}/farmer-accept`;
+                let url = `/api/orders/${orderId}/farmer-accept`;
                 if (lat && lng) {
                     url += `?lat=${lat}&lon=${lng}`;
                 }
@@ -60,7 +60,7 @@ export default function FarmerOrders() {
                 // Notification handled by UI update (status change)
 
                 // Refresh orders
-                const res = await axios.get(`http://localhost:8080/api/orders?farmerId=${user.id}`);
+                const res = await axios.get(`/api/orders?farmerId=${user.id}`);
                 setOrders(res.data);
 
                 // Keep modal open and update status to show Radar UI

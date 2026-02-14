@@ -1,7 +1,7 @@
 package com.agrolink.backend.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
+
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import java.math.BigDecimal;
@@ -11,7 +11,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "orders", schema = "public")
-@Data
+
 public class Order {
 
     @Id
@@ -71,5 +71,117 @@ public class Order {
         if (status == null) {
             status = OrderStatus.pending;
         }
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public void setId(UUID id) {
+        this.id = id;
+    }
+
+    public Profile getBuyer() {
+        return buyer;
+    }
+
+    public void setBuyer(Profile buyer) {
+        this.buyer = buyer;
+    }
+
+    public BigDecimal getTotalAmount() {
+        return totalAmount;
+    }
+
+    public void setTotalAmount(BigDecimal totalAmount) {
+        this.totalAmount = totalAmount;
+    }
+
+    public OrderStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(OrderStatus status) {
+        this.status = status;
+    }
+
+    public Profile getFarmer() {
+        return farmer;
+    }
+
+    public void setFarmer(Profile farmer) {
+        this.farmer = farmer;
+    }
+
+    public Profile getDriver() {
+        return driver;
+    }
+
+    public void setDriver(Profile driver) {
+        this.driver = driver;
+    }
+
+    public String getDeliveryAddress() {
+        return deliveryAddress;
+    }
+
+    public void setDeliveryAddress(String deliveryAddress) {
+        this.deliveryAddress = deliveryAddress;
+    }
+
+    public Double getDeliveryLatitude() {
+        return deliveryLatitude;
+    }
+
+    public void setDeliveryLatitude(Double deliveryLatitude) {
+        this.deliveryLatitude = deliveryLatitude;
+    }
+
+    public Double getDeliveryLongitude() {
+        return deliveryLongitude;
+    }
+
+    public void setDeliveryLongitude(Double deliveryLongitude) {
+        this.deliveryLongitude = deliveryLongitude;
+    }
+
+    public Double getPickupLatitude() {
+        return pickupLatitude;
+    }
+
+    public void setPickupLatitude(Double pickupLatitude) {
+        this.pickupLatitude = pickupLatitude;
+    }
+
+    public Double getPickupLongitude() {
+        return pickupLongitude;
+    }
+
+    public void setPickupLongitude(Double pickupLongitude) {
+        this.pickupLongitude = pickupLongitude;
+    }
+
+    public String getPickupAddress() {
+        return pickupAddress;
+    }
+
+    public void setPickupAddress(String pickupAddress) {
+        this.pickupAddress = pickupAddress;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public List<OrderItem> getItems() {
+        return items;
+    }
+
+    public void setItems(List<OrderItem> items) {
+        this.items = items;
     }
 }

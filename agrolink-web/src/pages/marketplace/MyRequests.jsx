@@ -30,7 +30,7 @@ export default function MyRequests() {
 
     const fetchRequests = async () => {
         try {
-            const response = await fetch(`http://localhost:8080/api/requests/buyer/${user.id}`);
+            const response = await fetch(`/api/requests/buyer/${user.id}`);
             if (response.ok) {
                 const data = await response.json();
                 // Sort by date descending
@@ -48,7 +48,7 @@ export default function MyRequests() {
 
         setDeleteLoading(id);
         try {
-            const response = await fetch(`http://localhost:8080/api/requests/${id}`, {
+            const response = await fetch(`/api/requests/${id}`, {
                 method: 'DELETE'
             });
 
@@ -80,7 +80,7 @@ export default function MyRequests() {
     const handleUpdate = async (e) => {
         e.preventDefault();
         try {
-            const response = await fetch(`http://localhost:8080/api/requests/${currentRequest.id}`, {
+            const response = await fetch(`/api/requests/${currentRequest.id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',

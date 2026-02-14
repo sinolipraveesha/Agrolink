@@ -247,7 +247,7 @@ export default function ActiveTrip() {
 
         try {
             if (backendStatus) {
-                await fetch(`http://localhost:8080/api/orders/${tripId}/status?status=${backendStatus}`, {
+                await fetch(`/api/orders/${tripId}/status?status=${backendStatus}`, {
                     method: 'PUT'
                 });
             }

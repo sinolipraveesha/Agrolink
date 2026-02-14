@@ -18,7 +18,7 @@ export default function Home() {
   useEffect(() => {
     if (user?.id) {
       // Fetch profile to get role
-      axios.get(`http://localhost:8080/api/profiles/${user.id}`)
+      axios.get(`/api/profiles/${user.id}`)
         .then(res => {
           setUserRole(res.data.role);
           setUserStatus(res.data.status);
@@ -186,9 +186,22 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Mobile Menu Button */}
-          <div className="md:hidden">
-            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="focus:outline-none">
+          {/* Mobile Header Icons */}
+          <div className="md:hidden flex items-center gap-4">
+            {/* Cart Icon Mobile */}
+            <div
+              onClick={() => navigate('/cart')}
+              className="relative cursor-pointer text-gray-800"
+            >
+              <ShoppingCart className="h-6 w-6" />
+              {getCartCount() > 0 && (
+                <span className="absolute -top-1 -right-2 bg-[#db1c1c] text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">
+                  {getCartCount()}
+                </span>
+              )}
+            </div>
+
+            <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="focus:outline-none text-gray-800">
               {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
@@ -214,21 +227,65 @@ export default function Home() {
 
               {user ? (
                 <>
-                  <div className="pt-4 border-t border-gray-100">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-8 h-8 rounded-full bg-[#1a7935] text-white flex items-center justify-center font-bold text-sm">
-                        {user.email?.charAt(0).toUpperCase()}
+                  <>
+                    <div className="pt-4 border-t border-gray-100">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-8 h-8 rounded-full bg-[#1a7935] text-white flex items-center justify-center font-bold text-sm">
+                          {user.email?.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">{user.email}</p>
+                          <p className="text-xs text-gray-500 capitalize">{userRole}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium">{user.email}</p>
-                        <p className="text-xs text-gray-500 capitalize">{userRole}</p>
-                      </div>
+
+                      {userRole !== 'buyer' && userStatus === 'approved' && (
+                        <button
+                          onClick={() => navigate(getDashboardLink())}
+                          className="block w-full text-left py-2 hover:text-[#1a7935] font-medium transition-colors"
+                        >
+                          Dashboard
+                        </button>
+                      )}
+
+                      {(userRole === 'farmer' || userRole === 'driver') && userStatus !== 'approved' && (
+                        <div className="px-2 py-1 text-xs text-amber-600 bg-amber-50 rounded border border-amber-200 mb-2 w-fit">
+                          Verification Pending
+                        </div>
+                      )}
+
+                      {userRole === 'buyer' && (
+                        <>
+                          <button
+                            onClick={() => navigate('/my-orders')}
+                            className="block w-full text-left py-2 hover:text-[#1a7935] font-medium transition-colors"
+                          >
+                            My Orders
+                          </button>
+                          <button
+                            onClick={() => navigate('/post-request')}
+                            className="block w-full text-left py-2 hover:text-[#1a7935] font-medium transition-colors"
+                          >
+                            Post Request
+                          </button>
+                          <button
+                            onClick={() => navigate('/my-requests')}
+                            className="block w-full text-left py-2 hover:text-[#1a7935] font-medium transition-colors"
+                          >
+                            My Requests
+                          </button>
+                        </>
+                      )}
+
+                      <button onClick={handleLogout} className="block w-full text-left py-2 text-red-600 hover:bg-red-50 rounded mt-2">Log Out</button>
                     </div>
-                    <button onClick={handleLogout} className="block w-full text-left py-2 text-red-600 hover:bg-red-50 rounded px-2">Log Out</button>
-                  </div>
+                  </>
                 </>
               ) : (
-                <a href="/register" className="block py-2 hover:text-[#1a7935] font-bold text-[#1a7935]">Register/Login</a>
+                <>
+                  <a href="/login" className="block py-2 border-b border-gray-100 hover:text-[#1a7935] font-medium text-gray-700">Login</a>
+                  <a href="/register" className="block py-2 hover:text-[#1a7935] font-bold text-[#1a7935]">Register</a>
+                </>
               )}
             </div>
           </div>

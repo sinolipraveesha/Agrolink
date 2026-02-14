@@ -75,7 +75,7 @@ export default function Register() {
                     status: selectedRole === 'buyer' ? 'approved' : 'pending' // Buyers auto-approved, others pending
                 };
 
-                await axios.post('http://localhost:8080/api/profiles', profileData);
+                await axios.post('/api/profiles', profileData);
 
                 setMessage('Registration successful! Redirecting...');
 

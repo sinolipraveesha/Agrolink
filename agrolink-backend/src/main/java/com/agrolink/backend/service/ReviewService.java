@@ -6,7 +6,6 @@ import com.agrolink.backend.model.Review;
 import com.agrolink.backend.repository.OrderRepository;
 import com.agrolink.backend.repository.ProfileRepository;
 import com.agrolink.backend.repository.ReviewRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,12 +14,19 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
+
 public class ReviewService {
 
     private final ReviewRepository reviewRepository;
     private final ProfileRepository profileRepository;
     private final OrderRepository orderRepository;
+
+    public ReviewService(ReviewRepository reviewRepository, ProfileRepository profileRepository,
+            OrderRepository orderRepository) {
+        this.reviewRepository = reviewRepository;
+        this.profileRepository = profileRepository;
+        this.orderRepository = orderRepository;
+    }
 
     @Transactional
     public Review createReview(UUID orderId, UUID reviewerId, UUID revieweeId, Integer rating, String comment) {

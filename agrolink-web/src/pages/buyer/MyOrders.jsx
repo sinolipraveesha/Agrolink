@@ -13,7 +13,7 @@ const MyOrders = () => {
     useEffect(() => {
         if (user) {
             console.log("Fetching orders for user:", user.id);
-            axios.get(`http://localhost:8080/api/orders?buyerId=${user.id}`)
+            axios.get(`/api/orders?buyerId=${user.id}`)
                 .then(res => {
                     console.log("Orders response:", res.data);
                     setOrders(Array.isArray(res.data) ? res.data : []);

@@ -2,8 +2,7 @@ package com.agrolink.backend.controller;
 
 import com.agrolink.backend.model.Review;
 import com.agrolink.backend.service.ReviewService;
-import lombok.Data;
-import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,11 +11,14 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/reviews")
-@RequiredArgsConstructor
 
 public class ReviewController {
 
     private final ReviewService reviewService;
+
+    public ReviewController(ReviewService reviewService) {
+        this.reviewService = reviewService;
+    }
 
     @PostMapping
     public ResponseEntity<Review> createReview(@RequestBody ReviewRequest request) {
@@ -53,12 +55,51 @@ public class ReviewController {
         return ResponseEntity.ok(reviewService.getReview(orderId, reviewerId, revieweeId));
     }
 
-    @Data
     public static class ReviewRequest {
         private UUID orderId;
         private UUID reviewerId;
         private UUID revieweeId;
         private Integer rating; // 1-5
         private String comment;
+
+        public UUID getOrderId() {
+            return orderId;
+        }
+
+        public void setOrderId(UUID orderId) {
+            this.orderId = orderId;
+        }
+
+        public UUID getReviewerId() {
+            return reviewerId;
+        }
+
+        public void setReviewerId(UUID reviewerId) {
+            this.reviewerId = reviewerId;
+        }
+
+        public UUID getRevieweeId() {
+            return revieweeId;
+        }
+
+        public void setRevieweeId(UUID revieweeId) {
+            this.revieweeId = revieweeId;
+        }
+
+        public Integer getRating() {
+            return rating;
+        }
+
+        public void setRating(Integer rating) {
+            this.rating = rating;
+        }
+
+        public String getComment() {
+            return comment;
+        }
+
+        public void setComment(String comment) {
+            this.comment = comment;
+        }
     }
 }

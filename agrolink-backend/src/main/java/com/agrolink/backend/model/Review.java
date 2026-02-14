@@ -1,14 +1,14 @@
 package com.agrolink.backend.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
+
 
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
 @Table(name = "reviews", schema = "public")
-@Data
+
 public class Review {
 
     @Id
@@ -41,5 +41,61 @@ public class Review {
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
         }
+    }
+
+    public UUID getId() {
+        return id;
+    }
+
+    public void setId(UUID id) {
+        this.id = id;
+    }
+
+    public Profile getReviewer() {
+        return reviewer;
+    }
+
+    public void setReviewer(Profile reviewer) {
+        this.reviewer = reviewer;
+    }
+
+    public Profile getReviewee() {
+        return reviewee;
+    }
+
+    public void setReviewee(Profile reviewee) {
+        this.reviewee = reviewee;
+    }
+
+    public Order getOrder() {
+        return order;
+    }
+
+    public void setOrder(Order order) {
+        this.order = order;
+    }
+
+    public Integer getRating() {
+        return rating;
+    }
+
+    public void setRating(Integer rating) {
+        this.rating = rating;
+    }
+
+    public String getComment() {
+        return comment;
+    }
+
+    public void setComment(String comment) {
+        this.comment = comment;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 }

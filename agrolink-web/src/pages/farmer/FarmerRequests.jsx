@@ -19,7 +19,7 @@ export default function FarmerRequests() {
 
         try {
             // Fetch notifications for top seller matches
-            const notifResponse = await fetch(`http://localhost:8080/api/notifications/${user.id}`);
+            const notifResponse = await fetch(`/api/notifications/${user.id}`);
             const notifications = await notifResponse.json();
 
             // In a real app we'd fetch actual request details from the notification.relatedId
@@ -39,7 +39,7 @@ export default function FarmerRequests() {
         if (!notification.relatedId) return;
         setDetailsLoading(true);
         try {
-            const response = await fetch(`http://localhost:8080/api/requests/${notification.relatedId}`);
+            const response = await fetch(`/api/requests/${notification.relatedId}`);
             if (response.ok) {
                 const data = await response.json();
                 setSelectedRequest(data);
@@ -61,7 +61,7 @@ export default function FarmerRequests() {
         if (!selectedRequest || !user) return;
 
         try {
-            const response = await fetch(`http://localhost:8080/api/requests/${selectedRequest.id}/accept/${user.id}`, {
+            const response = await fetch(`/api/requests/${selectedRequest.id}/accept/${user.id}`, {
                 method: 'POST'
             });
 

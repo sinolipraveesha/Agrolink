@@ -11,7 +11,7 @@ export default function UserVerification() {
     const fetchPendingUsers = async () => {
         setLoading(true);
         try {
-            const res = await axios.get('http://localhost:8080/api/profiles/pending');
+            const res = await axios.get('/api/profiles/pending');
             setUsers(res.data);
         } catch (err) {
             console.error(err);
@@ -103,7 +103,7 @@ export default function UserVerification() {
     const handleApprove = async (id) => {
         if (!window.confirm("Are you sure you want to approve this user?")) return;
         try {
-            await axios.put(`http://localhost:8080/api/profiles/${id}/approve`);
+            await axios.put(`/api/profiles/${id}/approve`);
             setUsers(users.filter(u => u.id !== id));
             setSelectedUser(null);
         } catch (err) {

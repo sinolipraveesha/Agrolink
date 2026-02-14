@@ -1,35 +1,77 @@
 package com.agrolink.backend.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import java.time.LocalDateTime;
+import org.locationtech.jts.geom.Point;
 import java.util.UUID;
+import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "driver_locations", schema = "public")
-@Data
+@Table(name = "driver_locations")
 public class DriverLocation {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    @OneToOne
-    @JoinColumn(name = "driver_id", unique = true, nullable = false)
-    private Profile driver;
+    @Column(name = "driver_id", nullable = false)
+    private UUID driverId;
 
-    @Column(nullable = false)
-    private Double latitude;
+    @Column(name = "current_position", columnDefinition = "geometry(Point,4326)")
+    private Point currentPosition;
 
-    @Column(nullable = false)
-    private Double longitude;
+    @Column(name = "heading")
+    private Double heading;
 
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    @Column(name = "last_updated")
+    private LocalDateTime lastUpdated;
 
-    @PrePersist
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+    public DriverLocation() {
+    }
+
+    public DriverLocation(UUID driverId, Point currentPosition, Double heading, LocalDateTime lastUpdated) {
+        this.driverId = driverId;
+        this.currentPosition = currentPosition;
+        this.heading = heading;
+        this.lastUpdated = lastUpdated;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public UUID getDriverId() {
+        return driverId;
+    }
+
+    public void setDriverId(UUID driverId) {
+        this.driverId = driverId;
+    }
+
+    public Point getCurrentPosition() {
+        return currentPosition;
+    }
+
+    public void setCurrentPosition(Point currentPosition) {
+        this.currentPosition = currentPosition;
+    }
+
+    public Double getHeading() {
+        return heading;
+    }
+
+    public void setHeading(Double heading) {
+        this.heading = heading;
+    }
+
+    public LocalDateTime getLastUpdated() {
+        return lastUpdated;
+    }
+
+    public void setLastUpdated(LocalDateTime lastUpdated) {
+        this.lastUpdated = lastUpdated;
     }
 }

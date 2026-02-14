@@ -115,7 +115,7 @@ export default function AddProduct() {
                 status: 'pending' // Explicitly setting status
             };
 
-            await axios.post('http://localhost:8080/api/products', payload);
+            await axios.post('/api/products', payload);
 
             alert("Product Added Successfully! It will be listed after Admin approval.");
             setFormData({ category_id: '', product_name: '', description: '', price: '', unit: 'kg', quantity: '' });

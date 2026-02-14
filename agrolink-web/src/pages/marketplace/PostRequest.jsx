@@ -33,7 +33,7 @@ export default function PostRequest() {
         try {
             // 1. Update Profile Location if available
             if (gpsLocation) {
-                const profileUpdateResponse = await fetch(`http://localhost:8080/api/profiles/${user.id}`, {
+                const profileUpdateResponse = await fetch(`/api/profiles/${user.id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -51,7 +51,7 @@ export default function PostRequest() {
             }
 
             // 2. Post Request
-            const response = await fetch('http://localhost:8080/api/requests', {
+            const response = await fetch('/api/requests', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

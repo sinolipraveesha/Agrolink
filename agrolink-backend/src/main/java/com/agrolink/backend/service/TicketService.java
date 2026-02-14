@@ -4,6 +4,7 @@ import com.agrolink.backend.model.Profile;
 import com.agrolink.backend.model.Ticket;
 import com.agrolink.backend.model.TicketMessage;
 import com.agrolink.backend.model.TicketStatus;
+import com.agrolink.backend.model.UserRole;
 import com.agrolink.backend.repository.ProfileRepository;
 import com.agrolink.backend.repository.TicketMessageRepository;
 import com.agrolink.backend.repository.TicketRepository;
@@ -50,7 +51,7 @@ public class TicketService {
         Ticket savedTicket = ticketRepository.save(ticket);
 
         // Notify all admins about the new ticket
-        List<Profile> admins = profileRepository.findByRole("admin");
+        List<Profile> admins = profileRepository.findByRole(UserRole.admin);
         for (Profile admin : admins) {
             notificationService.createNotification(
                     admin.getId(),
@@ -93,7 +94,7 @@ public class TicketService {
         // Send notification
         if (isTicketOwner) {
             // User sent message → notify all admins
-            List<Profile> admins = profileRepository.findByRole("admin");
+            List<Profile> admins = profileRepository.findByRole(UserRole.admin);
             for (Profile admin : admins) {
                 notificationService.createNotification(
                         admin.getId(),

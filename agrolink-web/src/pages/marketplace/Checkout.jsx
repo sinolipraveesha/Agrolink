@@ -76,7 +76,7 @@ const Checkout = () => {
                 }))
             };
 
-            const response = await axios.post('http://localhost:8080/api/orders/checkout', payload);
+            const response = await axios.post('/api/orders/checkout', payload);
 
             if (response.status === 200) {
                 // Instead of clearing cart immediately, we launch Payment.

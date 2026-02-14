@@ -17,7 +17,7 @@ export default function AdminCategoryManager() {
 
     const fetchCategories = async () => {
         try {
-            const response = await axios.get('http://localhost:8080/api/categories');
+            const response = await axios.get('/api/categories');
             setCategories(response.data);
             setLoading(false);
         } catch (error) {
@@ -63,9 +63,9 @@ export default function AdminCategoryManager() {
         e.preventDefault();
         try {
             if (editingCategory) {
-                await axios.put(`http://localhost:8080/api/categories/${editingCategory.id}`, formData);
+                await axios.put(`/api/categories/${editingCategory.id}`, formData);
             } else {
-                await axios.post('http://localhost:8080/api/categories', formData);
+                await axios.post('/api/categories', formData);
             }
             fetchCategories();
             handleCloseModal();
@@ -77,7 +77,7 @@ export default function AdminCategoryManager() {
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this category?')) {
             try {
-                await axios.delete(`http://localhost:8080/api/categories/${id}`);
+                await axios.delete(`/api/categories/${id}`);
                 fetchCategories();
             } catch (error) {
                 console.error('Error deleting category:', error);

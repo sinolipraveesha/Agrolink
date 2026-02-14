@@ -73,12 +73,12 @@ public class OrderController {
     }
 
     @PutMapping("/{id}/driver-accept")
-    public ResponseEntity<Order> driverAccept(@PathVariable UUID id, @RequestParam UUID driverId) {
+    public ResponseEntity<?> driverAccept(@PathVariable UUID id, @RequestParam UUID driverId) {
         try {
             Order updated = orderService.driverAcceptJob(id, driverId);
             return ResponseEntity.ok(updated);
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 

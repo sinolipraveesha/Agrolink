@@ -27,7 +27,7 @@ export default function VerificationPending() {
             setUser(user);
 
             try {
-                const res = await axios.get(`http://localhost:8080/api/profiles/${user.id}`);
+                const res = await axios.get(`/api/profiles/${user.id}`);
                 setProfile(res.data);
                 if (res.data.status === 'submitted') {
                     setSubmitted(true);
@@ -87,7 +87,7 @@ export default function VerificationPending() {
                 vehiclePlatePhotoUrl = await handleUpload(vehiclePlatePhoto, 'vehicle_plate_photo');
             }
 
-            await axios.put(`http://localhost:8080/api/profiles/${user.id}/submit-verification`, {
+            await axios.put(`/api/profiles/${user.id}/submit-verification`, {
                 nicFrontUrl,
                 nicBackUrl,
                 proofPhotoUrl: proofUrl,

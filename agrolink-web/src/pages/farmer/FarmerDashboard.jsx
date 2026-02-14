@@ -22,11 +22,11 @@ export default function FarmerDashboard() {
             if (user?.id) {
                 try {
                     // Fetch Profile for Top Seller stats
-                    const profileRes = await axios.get(`http://localhost:8080/api/profiles/${user.id}`);
+                    const profileRes = await axios.get(`/api/profiles/${user.id}`);
                     setProfile(profileRes.data);
 
                     // Fetch Orders
-                    const ordersRes = await axios.get(`http://localhost:8080/api/orders?farmerId=${user.id}`);
+                    const ordersRes = await axios.get(`/api/orders?farmerId=${user.id}`);
                     const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : [];
                     setOrders(ordersData);
 
@@ -43,7 +43,7 @@ export default function FarmerDashboard() {
                     });
 
                     // Fetch Reviews
-                    const reviewsRes = await axios.get(`http://localhost:8080/api/reviews/profile/${user.id}`);
+                    const reviewsRes = await axios.get(`/api/reviews/profile/${user.id}`);
                     const reviewsData = Array.isArray(reviewsRes.data) ? reviewsRes.data : [];
                     setReviews(reviewsData);
 
@@ -64,7 +64,7 @@ export default function FarmerDashboard() {
 
     const handleStatusUpdate = async (orderId, status) => {
         try {
-            await axios.put(`http://localhost:8080/api/orders/${orderId}/status?status=${status}`);
+            await axios.put(`/api/orders/${orderId}/status?status=${status}`);
             // Refresh logic could be better, just reloading for now or update local state
             window.location.reload();
         } catch (error) {
@@ -369,7 +369,7 @@ export default function FarmerDashboard() {
                                     <div className="flex gap-3 pt-4">
                                         <button
                                             onClick={() => {
-                                                handleAcceptOrder(selectedOrder.id);
+                                                handleStatusUpdate(selectedOrder.id, 'accepted');
                                                 setSelectedOrder(null);
                                             }}
                                             className="flex-1 bg-[#1a7935] text-white py-3 rounded-xl font-bold hover:bg-[#145d29] flex justify-center items-center gap-2 shadow-lg shadow-green-900/10"

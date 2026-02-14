@@ -43,4 +43,9 @@ public class NotificationController {
                 .findFirst()
                 .orElse(null);
     }
+
+    @GetMapping("/debug/admins")
+    public List<com.agrolink.backend.model.Profile> checkAdmins() {
+        return profileRepository.findByRole(com.agrolink.backend.model.UserRole.admin);
+    }
 }
