@@ -19,17 +19,21 @@ public class OrderController {
 
     @GetMapping
     public List<Order> getAllOrders(@RequestParam(required = false) OrderStatus status,
-            @RequestParam(required = false) UUID buyerId, @RequestParam(required = false) UUID farmerId) {
+            @RequestParam(required = false) UUID buyerId,
+            @RequestParam(required = false) UUID farmerId,
+            @RequestParam(required = false) UUID driverId) {
         System.out.println("GET /api/orders hit");
         if (buyerId != null) {
             System.out.println("Fetching orders for Buyer ID: " + buyerId);
-            List<Order> orders = orderService.getOrdersByBuyer(buyerId);
-            System.out.println("Found " + orders.size() + " orders for buyer.");
-            return orders;
+            return orderService.getOrdersByBuyer(buyerId);
         }
         if (farmerId != null) {
             System.out.println("Fetching orders for Farmer ID: " + farmerId);
             return orderService.getOrdersByFarmer(farmerId);
+        }
+        if (driverId != null) {
+            System.out.println("Fetching orders for Driver ID: " + driverId);
+            return orderService.getOrdersByDriver(driverId);
         }
         if (status != null) {
             return orderService.getOrdersByStatus(status);
@@ -84,6 +88,7 @@ public class OrderController {
 
     @GetMapping("/nearby")
     public List<Order> getNearbyJobs(@RequestParam double lat, @RequestParam double lon) {
+        System.out.println("Endpoint /nearby hit with lat: " + lat + ", lon: " + lon);
         return orderService.getNearbyAvailableJobs(lat, lon);
     }
 }

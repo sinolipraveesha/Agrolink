@@ -1,7 +1,49 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
-import { DollarSign, ShoppingBag, Truck, TrendingUp, Loader2, CheckCircle, XCircle, Star, User, Crown } from 'lucide-react';
+import { DollarSign, ShoppingBag, Truck, TrendingUp, Loader2, CheckCircle, XCircle, Star, User, Crown, MapPin, Navigation, RefreshCw } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import { supabase } from '../../lib/supabaseClient';
+
+// Fix Leaflet icons
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+    iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+    iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+// Custom Icons
+const farmerIcon = new L.Icon({
+    iconUrl: 'https://cdn-icons-png.flaticon.com/512/684/684908.png', // Farmer/Person icon
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    popupAnchor: [0, -20],
+    shadowSize: [41, 41]
+});
+
+const driverIcon = new L.Icon({
+    iconUrl: 'https://cdn-icons-png.flaticon.com/512/1048/1048329.png', // Green Delivery Truck (Lorry)
+    shadowUrl: null, // No shadow for cleaner look
+    iconSize: [45, 45],
+    iconAnchor: [22, 22],
+    popupAnchor: [0, -22]
+});
+
+// Map Recenter Component
+function MapRecenter({ center }) {
+    const map = useMap();
+    useEffect(() => {
+        // Ensure center is valid [lat, lng]
+        if (center && typeof center.lat === 'number' && typeof center.lng === 'number' && !isNaN(center.lat) && !isNaN(center.lng)) {
+            map.flyTo(center, 15, { duration: 1.5 });
+        }
+    }, [center, map]);
+    return null;
+}
 
 export default function FarmerDashboard() {
     const { user } = useAuth();
@@ -15,58 +57,190 @@ export default function FarmerDashboard() {
     const [reviews, setReviews] = useState([]);
     const [averageRating, setAverageRating] = useState(0);
     const [profile, setProfile] = useState(null);
+    const [farmerLocation, setFarmerLocation] = useState(null);
+    const [activeDriver, setActiveDriver] = useState(null);
+    const [activeDriverLocation, setActiveDriverLocation] = useState(null);
+    const [routeLine, setRouteLine] = useState(null);
     const [selectedOrder, setSelectedOrder] = useState(null);
 
-    useEffect(() => {
-        const fetchData = async () => {
-            if (user?.id) {
-                try {
-                    // Fetch Profile for Top Seller stats
-                    const profileRes = await axios.get(`/api/profiles/${user.id}`);
-                    setProfile(profileRes.data);
 
-                    // Fetch Orders
-                    const ordersRes = await axios.get(`/api/orders?farmerId=${user.id}`);
-                    const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : [];
-                    setOrders(ordersData);
+    // Data Fetch Function (Extractd for Polling)
+    const fetchData = async () => {
+        // Safety check for user
+        if (!user?.id) return;
 
-                    // Calc stats for dashboard cards
-                    const pendingCount = ordersData.filter(o => o.status === 'pending').length;
-                    const earnings = ordersData
-                        .filter(o => o.status === 'delivered')
-                        .reduce((acc, curr) => acc + curr.totalAmount, 0);
+        try {
+            // Fetch Profile Only if missing (optimization)
+            if (!profile) {
+                const profileRes = await axios.get(`/api/profiles/${user.id}`);
+                setProfile(profileRes.data);
 
-                    setStats({
-                        earnings,
-                        pending: pendingCount,
-                        shipped: ordersData.filter(o => ['shipping', 'delivered'].includes(o.status)).length
+                if (profileRes.data.latitude && profileRes.data.longitude) {
+                    setFarmerLocation({
+                        lat: parseFloat(profileRes.data.latitude),
+                        lng: parseFloat(profileRes.data.longitude)
                     });
-
-                    // Fetch Reviews
-                    const reviewsRes = await axios.get(`/api/reviews/profile/${user.id}`);
-                    const reviewsData = Array.isArray(reviewsRes.data) ? reviewsRes.data : [];
-                    setReviews(reviewsData);
-
-                    if (reviewsData.length > 0) {
-                        const total = reviewsData.reduce((acc, r) => acc + r.rating, 0);
-                        setAverageRating(total / reviewsData.length);
-                    }
-
-                } catch (error) {
-                    console.error("Failed to load farmer data", error);
-                } finally {
-                    setLoading(false);
+                } else {
+                    // Default fallback (Sri Lanka center roughly)
+                    setFarmerLocation({ lat: 7.8731, lng: 80.7718 });
                 }
             }
-        };
+
+            // Fetch Orders
+            const ordersRes = await axios.get(`/api/orders?farmerId=${user.id}`);
+            const ordersData = Array.isArray(ordersRes.data) ? ordersRes.data : [];
+            setOrders(ordersData);
+
+            // Check for any active order with a driver
+            const incomingOrder = ordersData.find(o => o.status === 'ready_to_ship' && o.driver);
+            const shippingOrder = ordersData.find(o => o.status === 'shipped' && o.driver);
+
+            const activeOrder = incomingOrder || shippingOrder;
+
+            // Update Active Driver Logic
+            if (activeOrder && activeOrder.driver) {
+                // If driver changed or wasn't set, fetch loc
+                if (!activeDriver || activeDriver.id !== activeOrder.driver.id) {
+                    setActiveDriver(activeOrder.driver);
+
+                    // Initial driver location fetch using PROFILES table (Correct Source)
+                    const { data: driverProfile } = await supabase
+                        .from('profiles')
+                        .select('latitude, longitude')
+                        .eq('id', activeOrder.driver.id)
+                        .maybeSingle();
+
+                    if (driverProfile && driverProfile.latitude && driverProfile.longitude) {
+                        setActiveDriverLocation({
+                            lat: parseFloat(driverProfile.latitude),
+                            lng: parseFloat(driverProfile.longitude)
+                        });
+                    }
+                }
+            } else {
+                // If no active order, clear active driver
+                if (activeDriver) {
+                    setActiveDriver(null);
+                    setActiveDriverLocation(null);
+                }
+            }
+
+            // Calc stats
+            const pendingCount = ordersData.filter(o => o.status === 'pending').length;
+            const earnings = ordersData
+                .filter(o => o.status === 'delivered')
+                .reduce((acc, curr) => acc + (curr.totalAmount || 0), 0);
+
+            setStats({
+                earnings,
+                pending: pendingCount,
+                shipped: ordersData.filter(o => ['shipping', 'delivered'].includes(o.status)).length
+            });
+
+            // Fetch Reviews (Only once)
+            if (reviews.length === 0) {
+                const reviewsRes = await axios.get(`/api/reviews/profile/${user.id}`);
+                const reviewsData = Array.isArray(reviewsRes.data) ? reviewsRes.data : [];
+                setReviews(reviewsData);
+
+                if (reviewsData.length > 0) {
+                    const total = reviewsData.reduce((acc, r) => acc + (r.rating || 0), 0);
+                    setAverageRating(total / reviewsData.length);
+                }
+            }
+
+        } catch (error) {
+            console.error("Failed to load farmer data", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Initial Fetch & Polling
+    useEffect(() => {
         fetchData();
+
+        // Poll every 10 seconds to catch Driver Acceptance
+        const interval = setInterval(() => {
+            fetchData();
+        }, 10000);
+
+        return () => clearInterval(interval);
     }, [user]);
+
+    // Live Driver Tracking (Supabase Realtime - FIXED)
+    useEffect(() => {
+        if (!activeDriver) return;
+
+        const channel = supabase
+            .channel(`driver-tracking-${activeDriver.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'UPDATE',
+                    schema: 'public',
+                    table: 'profiles', // Correct Table
+                    filter: `id=eq.${activeDriver.id}`
+                },
+                (payload) => {
+                    const newLoc = payload.new;
+                    console.log("🚚 Realtime Driver Update:", newLoc);
+                    if (newLoc.latitude && newLoc.longitude) {
+                        setActiveDriverLocation({
+                            lat: parseFloat(newLoc.latitude),
+                            lng: parseFloat(newLoc.longitude)
+                        });
+                    }
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [activeDriver]);
+
+    // Update Route Line
+    useEffect(() => {
+        if (farmerLocation && activeDriverLocation) {
+            // Ensure numbers before setting route
+            if (activeDriverLocation.lat && activeDriverLocation.lng) {
+                setRouteLine([
+                    [activeDriverLocation.lat, activeDriverLocation.lng],
+                    [farmerLocation.lat, farmerLocation.lng]
+                ]);
+            }
+        } else {
+            setRouteLine(null);
+        }
+    }, [farmerLocation, activeDriverLocation]);
+
+
+    // Handle Farmer Location Adjustment
+    const handleDragEnd = async (e) => {
+        const marker = e.target;
+        const position = marker.getLatLng();
+        setFarmerLocation(position);
+
+        try {
+            await axios.put(`/api/profiles/${user.id}`, {
+                ...profile,
+                latitude: position.lat,
+                longitude: position.lng
+            });
+            alert("Location updated successfully!");
+        } catch (error) {
+            console.error("Failed to update location", error);
+            alert("Failed to save new location.");
+        }
+    };
 
     const handleStatusUpdate = async (orderId, status) => {
         try {
             await axios.put(`/api/orders/${orderId}/status?status=${status}`);
-            // Refresh logic could be better, just reloading for now or update local state
-            window.location.reload();
+            fetchData(); // Refresh immediately
+            // Optional: aggressive reload if clear needed
+            if (status === 'cancelled') window.location.reload();
         } catch (error) {
             console.error("Failed to update status", error);
             alert("Failed to update order status");
@@ -82,98 +256,151 @@ export default function FarmerDashboard() {
     }
 
     // Top Seller Metrics
-    // Calculate Top Seller Metrics from local order history (for immediate consistency)
     const deliveredOrders = orders.filter(o => o.status === 'delivered');
     const calculatedOrders = deliveredOrders.length;
     const calculatedEarnings = deliveredOrders.reduce((acc, curr) => acc + (curr.totalAmount || 0), 0);
     const currentRating = profile?.rating || 0;
-
-    // Determine status based on calculated metrics to handle existing data
     const meetsCriteria = calculatedOrders >= 100 && currentRating >= 4.8 && calculatedEarnings >= 100000;
-
-    // Prefer profile flag if set (backend logic), otherwise fallback to frontend calculation
     const isTopSeller = profile?.isTopSeller || meetsCriteria;
 
-    // Use calculated values for display
-    const totalOrders = calculatedOrders;
-    const totalEarnings = calculatedEarnings;
-
-    const statCards = [
-        { label: 'Total Earnings', value: `Rs. ${stats.earnings}`, icon: DollarSign, color: 'bg-green-500' },
-        { label: 'Pending Orders', value: stats.pending, icon: ShoppingBag, color: 'bg-orange-500' },
-        { label: 'Active Shipments', value: stats.shipped, icon: Truck, color: 'bg-blue-500' },
-        { label: 'Market Trend', value: '+15%', icon: TrendingUp, color: 'bg-purple-500' },
-    ];
-
     return (
-        <div className="p-8 max-w-7xl mx-auto space-y-8">
-            <header className="flex justify-between items-center bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                        Welcome Back, Farmer!
-                        {isTopSeller && (
-                            <span className="bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded-full border border-yellow-200 flex items-center gap-1">
-                                <Crown className="h-3 w-3 fill-yellow-500 text-yellow-500" />
-                                Top Seller
-                            </span>
-                        )}
-                    </h1>
-                    <p className="text-gray-500">Here is your daily activity overview</p>
-                </div>
-                <div className="text-sm text-gray-500">
-                    {new Date().toLocaleDateString()}
-                </div>
-            </header>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
-            {/* Top Seller Progress Section */}
-            {!isTopSeller && (
-                <div className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl p-6 border border-indigo-100">
-                    <div className="flex justify-between items-start mb-4">
-                        <div>
-                            <h3 className="text-lg font-bold text-indigo-900 flex items-center gap-2">
-                                <Crown className="h-5 w-5 text-indigo-600" />
-                                Become a Top Seller
-                            </h3>
-                            <p className="text-sm text-indigo-700/80">Unlock exclusive badges and visibility boosts!</p>
+            {/* --- LIVE TRACKING MAP SECTION --- */}
+            <div className="bg-white rounded-3xl shadow-lg overflow-hidden border border-gray-100">
+                <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+                    <div>
+                        <h2 className="text-xl font-black text-gray-800 flex items-center gap-2">
+                            <MapPin className="h-5 w-5 text-[#1a7935]" />
+                            Live Farm Location & Tracking {activeDriver && activeDriverLocation && <span className="text-sm font-normal text-gray-400 ml-2"> (Order #{orders.find(o => o.driver?.id === activeDriver.id)?.id?.slice(0, 8)})</span>}
+                        </h2>
+                        <p className="text-xs text-gray-500 mt-1">
+                            Drag the green marker to adjust your farm location.
+                            {activeDriver ? <span className="text-blue-600 font-bold ml-1 animate-pulse">● Driver is on the way!</span> : " Waiting for orders..."}
+                        </p>
+                    </div>
+                    {activeDriver ? (
+                        <div className="bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
+                            <p className="text-xs font-bold text-blue-700 flex items-center gap-1">
+                                <Truck className="h-3 w-3" />
+                                Driver Active
+                            </p>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={fetchData}
+                            className="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-50 transition-colors"
+                            title="Refresh Status"
+                        >
+                            <RefreshCw className="h-5 w-5" />
+                        </button>
+                    )}
+                </div>
+
+                <div className="h-[400px] w-full relative z-0">
+                    {farmerLocation && typicalNumber(farmerLocation.lat) ? (
+                        <MapContainer
+                            center={[farmerLocation.lat, farmerLocation.lng]}
+                            zoom={13}
+                            style={{ height: '100%', width: '100%' }}
+                        >
+                            <TileLayer
+                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                attribution='&copy; OpenStreetMap contributors'
+                            />
+
+                            {/* Farmer Marker (Draggable) */}
+                            <Marker
+                                position={[farmerLocation.lat, farmerLocation.lng]}
+                                icon={farmerIcon}
+                                draggable={true}
+                                eventHandlers={{
+                                    dragend: handleDragEnd,
+                                }}
+                            >
+                                <Popup>Your Farm Location (Drag to adjust)</Popup>
+                            </Marker>
+
+                            {/* Driver Marker (Live) */}
+                            {activeDriverLocation && typicalNumber(activeDriverLocation.lat) && (
+                                <Marker
+                                    position={[activeDriverLocation.lat, activeDriverLocation.lng]}
+                                    icon={driverIcon}
+                                >
+                                    <Popup>Driver is here</Popup>
+                                </Marker>
+                            )}
+
+                            {/* Route Line */}
+                            {routeLine && (
+                                <Polyline positions={routeLine} color="#2563eb" weight={4} opacity={0.7} dashArray="10, 10" />
+                            )}
+
+                            <MapRecenter center={activeDriverLocation || farmerLocation} />
+                        </MapContainer>
+                    ) : (
+                        <div className="flex h-full items-center justify-center bg-gray-50">
+                            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* --- REST OF DASHBOARD (STATS) --- */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                {/* Stats Cards... */}
+                <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 flex items-center justify-between">
+                    <div>
+                        <p className="text-sm font-medium text-gray-600 mb-1">Total Earnings</p>
+                        <h3 className="text-2xl font-black text-gray-900">Rs.{stats.earnings.toLocaleString()}</h3>
+                    </div>
+                    <div className="h-12 w-12 bg-green-50 rounded-2xl flex items-center justify-center text-[#1a7935]">
+                        <DollarSign className="h-6 w-6" />
+                    </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 flex items-center justify-between">
+                    <div>
+                        <p className="text-sm font-medium text-gray-600 mb-1">Pending Orders</p>
+                        <h3 className="text-2xl font-black text-gray-900">{stats.pending}</h3>
+                    </div>
+                    <div className="h-12 w-12 bg-orange-50 rounded-2xl flex items-center justify-center text-orange-600">
+                        <ShoppingBag className="h-6 w-6" />
+                    </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100 flex items-center justify-between">
+                    <div>
+                        <p className="text-sm font-medium text-gray-600 mb-1">Completed</p>
+                        <h3 className="text-2xl font-black text-gray-900">{stats.shipped}</h3>
+                    </div>
+                    <div className="h-12 w-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600">
+                        <CheckCircle className="h-6 w-6" />
+                    </div>
+                </div>
+
+                {isTopSeller && (
+                    <div className="bg-gradient-to-br from-yellow-50 to-amber-50 p-6 rounded-3xl shadow-lg border border-yellow-100 flex items-center justify-between relative overflow-hidden">
+                        <div className="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-gradient-to-br from-yellow-400/20 to-transparent rounded-full blur-xl animate-pulse"></div>
+                        <div className="relative z-10 w-full">
+                            <div className="flex items-center gap-2 mb-2">
+                                <Crown className="h-5 w-5 text-yellow-600 fill-yellow-600" />
+                                <span className="text-xs font-black text-yellow-700 uppercase tracking-wider">Top Seller</span>
+                            </div>
+                            <div className="flex justify-between items-end">
+                                <div>
+                                    <p className="text-[10px] text-yellow-800 font-bold opacity-80">RATING</p>
+                                    <p className="text-xl font-black text-yellow-900">{currentRating.toFixed(1)}/5.0</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[10px] text-yellow-800 font-bold opacity-80">ORDERS</p>
+                                    <p className="text-xl font-black text-yellow-900">{calculatedOrders}+</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {/* Orders Goal */}
-                        <div className="bg-white/60 p-4 rounded-xl backdrop-blur-sm">
-                            <div className="flex justify-between text-sm mb-1">
-                                <span className="text-gray-600 font-medium">Orders Completed</span>
-                                <span className="font-bold text-indigo-600">{totalOrders} / 100</span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2.5">
-                                <div className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${Math.min((totalOrders / 100) * 100, 100)}%` }}></div>
-                            </div>
-                        </div>
-
-                        {/* Rating Goal */}
-                        <div className="bg-white/60 p-4 rounded-xl backdrop-blur-sm">
-                            <div className="flex justify-between text-sm mb-1">
-                                <span className="text-gray-600 font-medium">Average Rating</span>
-                                <span className="font-bold text-indigo-600">{currentRating.toFixed(1)} / 4.8</span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2.5">
-                                <div className={`h-2.5 rounded-full transition-all duration-500 ${currentRating >= 4.8 ? 'bg-green-500' : 'bg-yellow-500'}`} style={{ width: `${Math.min((currentRating / 4.8) * 100, 100)}%` }}></div>
-                            </div>
-                        </div>
-
-                        {/* Earnings Goal */}
-                        <div className="bg-white/60 p-4 rounded-xl backdrop-blur-sm">
-                            <div className="flex justify-between text-sm mb-1">
-                                <span className="text-gray-600 font-medium">Total Earnings</span>
-                                <span className="font-bold text-indigo-600">LKR {(totalEarnings / 1000).toFixed(1)}k / 100k</span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2.5">
-                                <div className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${Math.min((totalEarnings / 100000) * 100, 100)}%` }}></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+                )}
+            </div>
 
             {/* Client Reviews Section */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -225,170 +452,97 @@ export default function FarmerDashboard() {
                 )}
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {statCards.map((stat, index) => (
-                    <div key={index} className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-sm font-medium text-gray-500">{stat.label}</p>
-                                <p className="text-2xl font-bold text-gray-800 mt-1">{stat.value}</p>
-                            </div>
-                            <div className={`p-3 rounded-full ${stat.color} bg-opacity-10 text-${stat.color.split('-')[1]}-600`}>
-                                <stat.icon className="h-6 w-6" />
-                            </div>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Orders Section */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* Recent Orders List */}
+            <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
                 <div className="p-6 border-b border-gray-100 flex justify-between items-center">
-                    <h3 className="font-bold text-gray-800">Recent Orders / නව ඇණවුම්</h3>
+                    <h2 className="text-lg font-bold text-gray-800">Recent Orders</h2>
                 </div>
-
-                {orders.length === 0 ? (
-                    <div className="p-12 text-center text-gray-500">
-                        <ShoppingBag className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-                        <p>No active orders at the moment.</p>
-                    </div>
-                ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left">
-                            <thead className="bg-gray-50 text-gray-500 text-sm">
-                                <tr>
-                                    <th className="px-6 py-4 font-medium">Order ID</th>
-                                    <th className="px-6 py-4 font-medium">Buyer</th>
-                                    <th className="px-6 py-4 font-medium">Status</th>
-                                    <th className="px-6 py-4 font-medium">Items</th>
-                                    <th className="px-6 py-4 font-medium">Total</th>
-                                    <th className="px-6 py-4 font-medium">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {Array.isArray(orders) && orders.map(order => (
-                                    <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="px-6 py-4 font-mono text-sm text-gray-600">#{order.id.substring(0, 8)}</td>
-                                        <td className="px-6 py-4 text-sm text-gray-800 font-medium">
-                                            <div>{order.buyer ? order.buyer.getFullName || order.buyer.email : 'Unknown'}</div>
-                                            <div className="text-xs text-gray-400">{order.deliveryAddress}</div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`px-3 py-1 rounded-full text-xs font-bold border capitalize ${order.status === 'pending' ? 'bg-amber-50 text-amber-600 border-amber-200' :
-                                                order.status === 'accepted' ? 'bg-green-50 text-green-600 border-green-200' : 'bg-gray-50 text-gray-600 border-gray-200'
-                                                }`}>
-                                                {order.status}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-gray-600">
-                                            {order.items?.length || 0} Items
-                                        </td>
-                                        <td className="px-6 py-4 font-bold text-[#1a7935]">Rs. {order.totalAmount}</td>
-                                        <td className="px-6 py-4">
-                                            <button
-                                                onClick={() => setSelectedOrder(order)}
-                                                className="text-[#1a7935] hover:underline text-sm font-bold"
-                                            >
-                                                View Details
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
-
-            {/* Order Details Modal */}
-            {
-                selectedOrder && (
-                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 animate-fade-in backdrop-blur-sm">
-                        <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                                <div>
-                                    <h3 className="text-xl font-bold text-gray-800">Order Details</h3>
-                                    <p className="text-sm text-gray-500 font-mono">#{selectedOrder.id}</p>
-                                </div>
-                                <button onClick={() => setSelectedOrder(null)} className="text-gray-400 hover:text-gray-600">
-                                    <XCircle className="h-6 w-6" />
-                                </button>
-                            </div>
-
-                            <div className="p-6 space-y-6">
-                                {/* Buyer Info */}
-                                <div className="flex gap-4 p-4 bg-green-50 rounded-xl border border-green-100">
-                                    <div className="bg-white p-2 rounded-full h-fit text-[#1a7935]">
-                                        <Truck className="h-5 w-5" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-bold text-[#1a7935] uppercase tracking-wide mb-1">Delivery To</p>
-                                        <p className="font-bold text-gray-800">{selectedOrder.buyer?.getFullName || selectedOrder.buyer?.email || 'Unknown Buyer'}</p>
-                                        <p className="text-sm text-gray-600">{selectedOrder.deliveryAddress}</p>
-                                        <p className="text-sm text-gray-600">{selectedOrder.contactNumber}</p>
-                                    </div>
-                                </div>
-
-                                {/* Items List */}
-                                <div>
-                                    <h4 className="font-bold text-gray-800 mb-4">Pack These Items:</h4>
-                                    <div className="space-y-3">
-                                        {selectedOrder.items?.map((item, idx) => (
-                                            <div key={idx} className="flex gap-4 items-center bg-white border border-gray-100 p-3 rounded-xl shadow-sm">
-                                                {/* Product Img Placeholder */}
-                                                <div className="h-16 w-16 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
-                                                    {item.product?.imageUrl ?
-                                                        <img src={item.product.imageUrl} className="w-full h-full object-cover" alt="" />
-                                                        : <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">No Img</div>
-                                                    }
-                                                </div>
-                                                <div className="flex-1">
-                                                    <p className="font-bold text-gray-800">{item.product?.name || item.customItemName}</p>
-                                                    <p className="text-sm text-gray-500">Unit Price: Rs. {item.priceAtTime}</p>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="font-bold text-lg text-[#1a7935]">x{item.quantity}</p>
-                                                    <p className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                                                        {item.product?.unit || 'Units'}
-                                                    </p>
-                                                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-gray-50/50">
+                            <tr>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Order ID</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Items</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Total</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Driver</th>
+                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {orders.map((order) => (
+                                <tr key={order.id} className="hover:bg-gray-50/50 transition-colors">
+                                    <td className="px-6 py-4 text-sm font-medium text-gray-900">#{order.id ? order.id.toString().slice(0, 8) : '...'}</td>
+                                    <td className="px-6 py-4 text-sm text-gray-600">
+                                        <div className="max-w-[200px] truncate">
+                                            {order.items?.map(i => i.product?.name || i.customItemName).join(', ')}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm font-bold text-[#1a7935]">Rs.{order.totalAmount}</td>
+                                    <td className="px-6 py-4">
+                                        <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                            ${order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                                                order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                                    order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                                                        'bg-blue-100 text-blue-800'}`}>
+                                            {order.status.replace('_', ' ')}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-gray-500">
+                                        {order.driver ? (
+                                            <div className="flex items-center gap-2">
+                                                <User className="h-4 w-4" />
+                                                <span>{order.driver.fullName || 'Assigned'}</span>
                                             </div>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                {/* Totals */}
-                                <div className="flex justify-between items-center pt-4 border-t border-gray-100">
-                                    <span className="text-gray-500">Total Order Value</span>
-                                    <span className="text-2xl font-bold text-[#1a7935]">Rs. {selectedOrder.totalAmount}</span>
-                                </div>
-
-                                {/* Actions */}
-                                {selectedOrder.status === 'pending' && (
-                                    <div className="flex gap-3 pt-4">
-                                        <button
-                                            onClick={() => {
-                                                handleStatusUpdate(selectedOrder.id, 'accepted');
-                                                setSelectedOrder(null);
-                                            }}
-                                            className="flex-1 bg-[#1a7935] text-white py-3 rounded-xl font-bold hover:bg-[#145d29] flex justify-center items-center gap-2 shadow-lg shadow-green-900/10"
-                                        >
-                                            <CheckCircle className="h-5 w-5" /> Accept Order
-                                        </button>
-                                        <button
-                                            onClick={() => setSelectedOrder(null)}
-                                            className="flex-1 bg-white text-red-500 border border-red-200 py-3 rounded-xl font-bold hover:bg-red-50"
-                                        >
-                                            Reject
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
-        </div >
+                                        ) : (
+                                            <span className="text-gray-400 italic">No Driver</span>
+                                        )}
+                                    </td>
+                                    <td className="px-6 py-4 text-right text-sm font-medium">
+                                        {(order.status === 'pending' || order.status === 'accepted') && (
+                                            <div className="flex justify-end gap-2">
+                                                {order.status === 'pending' && (
+                                                    <button
+                                                        onClick={() => handleStatusUpdate(order.id, 'accepted')}
+                                                        className="text-[#1a7935] hover:text-green-900 bg-green-50 px-3 py-1 rounded-lg"
+                                                    >
+                                                        Accept
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => handleStatusUpdate(order.id, 'cancelled')}
+                                                    className="text-red-600 hover:text-red-900 bg-red-50 px-3 py-1 rounded-lg"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        )}
+                                        {/* Allow cancelling STUCK orders (ready_to_ship/shipped) */}
+                                        {(order.status === 'ready_to_ship' || order.status === 'shipped') && (
+                                            <div className="flex justify-end gap-2">
+                                                <button
+                                                    onClick={() => {
+                                                        if (window.confirm("Are you sure? This will cancel the active delivery.")) {
+                                                            handleStatusUpdate(order.id, 'cancelled');
+                                                        }
+                                                    }}
+                                                    className="text-red-600 hover:text-red-900 bg-red-50 px-3 py-1 rounded-lg text-[10px] uppercase font-bold"
+                                                >
+                                                    Force Cancel
+                                                </button>
+                                            </div>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     );
+}
+
+function typicalNumber(n) {
+    return typeof n === 'number' && !isNaN(n);
 }

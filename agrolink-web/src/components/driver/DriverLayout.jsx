@@ -79,70 +79,87 @@ export default function DriverLayout() {
 
     return (
         <div className="min-h-screen bg-gray-50 flex">
+            {/* Sidebar Overlay for Mobile */}
+            {isSidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-[4900] md:hidden"
+                    onClick={() => setSidebarOpen(false)}
+                />
+            )}
+
             {/* Sidebar */}
             <aside
-                className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#0f2815] text-white transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                className={`fixed inset-y-0 left-0 z-[5000] w-64 bg-[#0f2815] text-white transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
                     } md:relative md:translate-x-0`}
             >
                 <div className="flex items-center justify-between p-4 border-b border-[#1a7935]">
                     <div className="flex items-center space-x-2">
-                        <Truck className="h-8 w-8 text-[#b0db3d]" />
-                        <span className="text-2xl font-bold tracking-tight">AgroLink Driver</span>
+                        <Truck className="h-6 w-6 text-[#b0db3d]" />
+                        <span className="text-xl font-bold tracking-tight">AgroLink</span>
                     </div>
-                    <button onClick={() => setSidebarOpen(false)} className="md:hidden">
-                        <X className="h-6 w-6" />
+                    <button onClick={() => setSidebarOpen(false)} className="md:hidden p-2">
+                        <X className="h-5 w-5" />
                     </button>
                 </div>
 
-                <nav className="mt-8 px-4 space-y-2">
+                <nav className="mt-6 px-3 space-y-1">
                     {menuItems.map((item) => (
                         <button
                             key={item.path}
-                            onClick={() => navigate(item.path)}
-                            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${location.pathname === item.path
-                                ? 'bg-[#1a7935] text-white font-semibold'
-                                : 'text-gray-300 hover:bg-[#1a7935]/50'
+                            onClick={() => {
+                                navigate(item.path);
+                                if (window.innerWidth < 768) setSidebarOpen(false);
+                            }}
+                            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors ${location.pathname === item.path
+                                ? 'bg-[#1a7935] text-white font-bold'
+                                : 'text-gray-400 hover:bg-white/5'
                                 }`}
                         >
                             <item.icon className="h-5 w-5" />
-                            <span>{item.label}</span>
+                            <span className="text-sm">{item.label}</span>
                         </button>
                     ))}
                 </nav>
 
-                <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-[#1a7935]">
+                <div className="absolute bottom-4 left-4 right-4">
                     <button
                         onClick={handleLogout}
-                        className="w-full flex items-center space-x-3 px-4 py-3 text-red-200 hover:bg-red-900/20 rounded-lg transition-colors"
+                        className="w-full flex items-center space-x-3 px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-colors"
                     >
                         <LogOut className="h-5 w-5" />
-                        <span>Log Out</span>
+                        <span className="text-sm font-bold">Sign Out</span>
                     </button>
                 </div>
             </aside>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
+            <div className="flex-1 flex flex-col min-h-screen overflow-hidden relative">
                 {/* Top Header for Mobile */}
-                <header className="bg-white shadow-sm md:hidden flex items-center justify-between p-4">
+                <header className="bg-white/90 backdrop-blur-md border-b border-gray-100 md:hidden flex items-center justify-between px-4 py-3 z-[4000] sticky top-0">
                     <div className="flex items-center">
-                        <button onClick={() => setSidebarOpen(true)} className="text-gray-600 mr-4">
+                        <button onClick={() => setSidebarOpen(true)} className="p-2 text-gray-800 -ml-2">
                             <Menu className="h-6 w-6" />
                         </button>
-                        <span className="font-bold text-[#0f2815]">Driver Dashboard</span>
+                        <span className="font-black text-sm text-[#0f2815] ml-2 tracking-tighter uppercase">AgroLink</span>
                     </div>
                     <NotificationDropdown userId={userId} />
                 </header>
 
                 {/* Desktop Top Bar */}
-                <header className="hidden md:flex bg-white shadow-sm p-4 justify-between items-center">
-                    <h2 className="text-xl font-bold text-gray-800">
+                <header className="hidden md:flex bg-white border-b border-gray-100 px-8 py-4 justify-between items-center z-[4000]">
+                    <h2 className="text-lg font-black text-gray-800 tracking-tight">
                         {menuItems.find(item => item.path === location.pathname)?.label || 'Dashboard'}
                     </h2>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-6">
                         <NotificationDropdown userId={userId} />
-                        <div className="w-8 h-8 bg-green-900 rounded-full flex items-center justify-center text-white font-bold border border-green-800">
-                            D
+                        <div className="flex items-center gap-3 pl-6 border-l border-gray-100">
+                            <div className="text-right">
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Driver</p>
+                                <p className="text-xs font-black text-gray-900">Active Session</p>
+                            </div>
+                            <div className="w-10 h-10 bg-[#1a7935] rounded-xl flex items-center justify-center text-white font-black shadow-lg shadow-green-900/10">
+                                D
+                            </div>
                         </div>
                     </div>
                 </header>

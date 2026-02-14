@@ -56,6 +56,9 @@ public class Order {
     @Column(name = "pickup_address")
     private String pickupAddress;
 
+    @Column(name = "contact_number")
+    private String contactNumber;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -167,6 +170,14 @@ public class Order {
 
     public void setPickupAddress(String pickupAddress) {
         this.pickupAddress = pickupAddress;
+    }
+
+    public String getContactNumber() {
+        return contactNumber;
+    }
+
+    public void setContactNumber(String contactNumber) {
+        this.contactNumber = contactNumber;
     }
 
     public LocalDateTime getCreatedAt() {

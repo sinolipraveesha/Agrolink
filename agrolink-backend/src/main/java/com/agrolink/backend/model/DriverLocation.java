@@ -1,7 +1,6 @@
 package com.agrolink.backend.model;
 
 import jakarta.persistence.*;
-import org.locationtech.jts.geom.Point;
 import java.util.UUID;
 import java.time.LocalDateTime;
 
@@ -16,8 +15,11 @@ public class DriverLocation {
     @Column(name = "driver_id", nullable = false)
     private UUID driverId;
 
-    @Column(name = "current_position", columnDefinition = "geometry(Point,4326)")
-    private Point currentPosition;
+    @Column(name = "latitude")
+    private Double latitude;
+
+    @Column(name = "longitude")
+    private Double longitude;
 
     @Column(name = "heading")
     private Double heading;
@@ -28,9 +30,10 @@ public class DriverLocation {
     public DriverLocation() {
     }
 
-    public DriverLocation(UUID driverId, Point currentPosition, Double heading, LocalDateTime lastUpdated) {
+    public DriverLocation(UUID driverId, Double latitude, Double longitude, Double heading, LocalDateTime lastUpdated) {
         this.driverId = driverId;
-        this.currentPosition = currentPosition;
+        this.latitude = latitude;
+        this.longitude = longitude;
         this.heading = heading;
         this.lastUpdated = lastUpdated;
     }
@@ -51,12 +54,20 @@ public class DriverLocation {
         this.driverId = driverId;
     }
 
-    public Point getCurrentPosition() {
-        return currentPosition;
+    public Double getLatitude() {
+        return latitude;
     }
 
-    public void setCurrentPosition(Point currentPosition) {
-        this.currentPosition = currentPosition;
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+
+    public Double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
     }
 
     public Double getHeading() {

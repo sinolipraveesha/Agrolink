@@ -14,8 +14,14 @@ export const useLiveLocation = (autoStart = true) => {
     const simulationIntervalRef = useRef(null);
     const simulationIndexRef = useRef(0);
 
-    // Mock Route for Simulation (Empty by default)
-    const mockRoute = [];
+    // Mock Route for Simulation (Colombo Area)
+    const mockRoute = [
+        { lat: 6.9271, lng: 79.8612, heading: 0 },
+        { lat: 6.9275, lng: 79.8615, heading: 45 },
+        { lat: 6.9280, lng: 79.8620, heading: 90 },
+        { lat: 6.9275, lng: 79.8625, heading: 135 },
+        { lat: 6.9270, lng: 79.8620, heading: 180 },
+    ];
 
     // Toggle Online/Offline
     const toggleOnline = (shouldGoOnline, simulate = false) => {
@@ -56,6 +62,13 @@ export const useLiveLocation = (autoStart = true) => {
         setStatus('simulating');
 
         simulationIntervalRef.current = setInterval(() => {
+            if (!mockRoute.length) {
+                // Fallback if no route
+                const newLocation = { lat: 7.8731, lng: 80.7718, accuracy: 50, speed: 0, heading: 0 };
+                setLocation(newLocation);
+                return;
+            }
+
             const index = simulationIndexRef.current;
             const point = mockRoute[index];
 

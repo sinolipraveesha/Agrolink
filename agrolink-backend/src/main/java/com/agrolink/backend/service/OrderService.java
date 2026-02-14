@@ -32,15 +32,41 @@ public class OrderService {
         return orderRepository.findByFarmerId(farmerId);
     }
 
+    public List<Order> getOrdersByDriver(UUID driverId) {
+        return orderRepository.findByDriverId(driverId);
+    }
+
     public Order createOrder(Order order) {
         return orderRepository.save(order);
     }
 
     public Order updateStatus(UUID id, OrderStatus status) {
+        System.out.println("🔄 updateStatus called for Order: " + id + " -> " + status);
         return orderRepository.findById(id).map(order -> {
             OrderStatus oldStatus = order.getStatus();
+            System.out.println("   Current Status: " + oldStatus);
             order.setStatus(status);
+
+            // Sync Pickup Location on ACCEPT
+            if (status == OrderStatus.accepted) {
+                if (order.getFarmer() != null) {
+                    // Refresh farmer from DB to get latest location
+                    com.agrolink.backend.model.Profile farmer = profileRepository.findById(order.getFarmer().getId())
+                            .orElse(order.getFarmer());
+
+                    if (farmer.getLatitude() != null && farmer.getLongitude() != null) {
+                        order.setPickupLatitude(farmer.getLatitude());
+                        order.setPickupLongitude(farmer.getLongitude());
+                        System.out.println("📍 Synced Order " + id + " pickup loc to Farmer loc: "
+                                + farmer.getLatitude() + ", " + farmer.getLongitude());
+                    } else {
+                        System.out.println("⚠️ Farmer has no location to sync for Order " + id);
+                    }
+                }
+            }
+
             Order savedOrder = orderRepository.save(order);
+            System.out.println("✅ Order saved with status: " + savedOrder.getStatus());
 
             // If status changed to delivered
             if (status == OrderStatus.delivered && oldStatus != OrderStatus.delivered) {
@@ -84,8 +110,40 @@ public class OrderService {
     }
 
     public List<Order> getNearbyAvailableJobs(double driverLat, double driverLon) {
-        // Radius of 20km
-        return orderRepository.findNearbyOrders(OrderStatus.accepted.name(), driverLat, driverLon, 20.0);
+        System.out.println("🔍 getNearbyAvailableJobs called. Driver Lat/Lon: " + driverLat + ", " + driverLon);
+
+        // DEBUG: First, dump ALL orders just to see what's in the DB
+        List<Order> allOrders = orderRepository.findAll();
+        System.out.println("📊 DEBUG: Total orders in DB: " + allOrders.size());
+        for (Order o : allOrders) {
+            System.out.println("   - Order " + o.getId() + " | Status: " + o.getStatus() + " | Farmer: "
+                    + (o.getFarmer() != null ? o.getFarmer().getId() : "null"));
+        }
+
+        // returning Accepted OR Pending orders for now to ensure visibility
+        // This addresses the user's issue where "pending" orders might be what they
+        // expect to see
+        List<Order> orders = orderRepository.findByStatus(OrderStatus.accepted);
+        List<Order> pendingOrders = orderRepository.findByStatus(OrderStatus.pending);
+        orders.addAll(pendingOrders);
+
+        System.out.println("   Found " + orders.size() + " available (accepted+pending) orders.");
+
+        // Fallback: Ensure pickup location is set (for older orders)
+        for (Order o : orders) {
+            if (o.getPickupLatitude() == null && o.getFarmer() != null) {
+                // Try to get farmer's location
+                com.agrolink.backend.model.Profile farmer = profileRepository.findById(o.getFarmer().getId())
+                        .orElse(o.getFarmer());
+                if (farmer != null && farmer.getLatitude() != null) {
+                    o.setPickupLatitude(farmer.getLatitude());
+                    o.setPickupLongitude(farmer.getLongitude());
+                    System.out.println(
+                            "   Updated missing pickup loc for Order " + o.getId() + " from Farmer " + farmer.getId());
+                }
+            }
+        }
+        return orders;
     }
 
     @Autowired
@@ -94,7 +152,9 @@ public class OrderService {
     @Autowired
     private com.agrolink.backend.repository.ProductRepository productRepository;
 
+    @org.springframework.transaction.annotation.Transactional
     public List<Order> placeOrder(com.agrolink.backend.dto.CheckoutRequest request) {
+        System.out.println("📦 Placing order for buyer: " + request.getBuyerId());
         List<Order> createdOrders = new java.util.ArrayList<>();
 
         // 1. Fetch relevant products
@@ -112,7 +172,12 @@ public class OrderService {
         for (com.agrolink.backend.dto.CheckoutRequest.CheckoutItem item : request.getItems()) {
             com.agrolink.backend.model.Product product = productMap.get(item.getProductId());
             if (product != null) {
-                itemsByFarmer.computeIfAbsent(product.getFarmerId(), k -> new java.util.ArrayList<>()).add(item);
+                UUID fId = product.getFarmerId();
+                if (fId != null) {
+                    itemsByFarmer.computeIfAbsent(fId, k -> new java.util.ArrayList<>()).add(item);
+                } else {
+                    System.err.println("⚠️ Warning: Product " + product.getId() + " has no farmerId!");
+                }
             }
         }
 
@@ -125,17 +190,28 @@ public class OrderService {
             UUID farmerId = entry.getKey();
             List<com.agrolink.backend.dto.CheckoutRequest.CheckoutItem> farmerItems = entry.getValue();
 
+            System.out.println("🚜 Creating order for farmerId: " + farmerId);
+
             Order order = new Order();
             order.setBuyer(buyer);
+            order.setContactNumber(request.getContactNumber()); // Save contact number
+
             com.agrolink.backend.model.Profile farmer = profileRepository.findById(farmerId).orElse(null);
+
+            if (farmer == null) {
+                // If the profile doesn't exist yet, we have a problem.
+                // We could optionally create a shell profile, but it's better to force it to
+                // exist.
+                System.err.println("❌ Error: Farmer profile " + farmerId + " not found in DB!");
+                throw new RuntimeException("Farmer profile not found for ID: " + farmerId);
+            }
+
             order.setFarmer(farmer); // Set Farmer
 
-            if (farmer != null) {
-                order.setPickupLatitude(farmer.getLatitude());
-                order.setPickupLongitude(farmer.getLongitude());
-                // order.setPickupAddress(farmer.getAddress()); // If we had address field in
-                // profile
-            }
+            order.setPickupLatitude(farmer.getLatitude());
+            order.setPickupLongitude(farmer.getLongitude());
+            // order.setPickupAddress(farmer.getAddress()); // If we had address field in
+            // profile
 
             order.setDeliveryAddress(request.getDeliveryAddress());
             order.setDeliveryLatitude(request.getDeliveryLatitude());
@@ -164,7 +240,9 @@ public class OrderService {
             order.setItems(orderItems);
             order.setTotalAmount(orderTotal);
 
-            createdOrders.add(orderRepository.save(order));
+            Order savedOrder = orderRepository.save(order);
+            createdOrders.add(savedOrder);
+            System.out.println("✅ Order created: " + savedOrder.getId() + " for farmer: " + farmerId);
         }
 
         return createdOrders;
@@ -173,11 +251,44 @@ public class OrderService {
     public Order driverAcceptJob(UUID orderId, UUID driverId) {
         return orderRepository.findById(orderId).map(order -> {
             // Check if already taken?
-            if (order.getStatus() != OrderStatus.accepted) {
-                throw new RuntimeException("Order is not available for pickup");
+            // Allow accepting if status is 'accepted' (meaning Farmer accepted it)
+            // OR checks generic availability.
+            // Note: The user flow seems to imply Driver accepts a "pending" or "available"
+            // job.
+            // But strict logic says 'accepted' by farmer first.
+            // Let's relax this check slightly IF the requirement is that drivers can accept
+            // direct pending orders,
+            // but for now, sticking to 'accepted' or 'pending' if that's the flow.
+            // However, to fix the LOCATION issue:
+
+            if (order.getStatus() != OrderStatus.accepted && order.getStatus() != OrderStatus.pending) {
+                // Allowing 'pending' too if that's how the app works, but safe to stick to
+                // 'accepted'
+                // if the previous logic was strictly 'accepted'.
+                // The error message says "Order is not available for pickup".
+                // Let's keep the status check as is (assuming flow is correct),
+                // just fixing the LOCATION update.
+                if (order.getStatus() != OrderStatus.accepted) {
+                    throw new RuntimeException("Order is not available for pickup (Status must be ACCEPTED by farmer)");
+                }
             }
+
+            // Assign Driver
             order.setDriver(
                     profileRepository.findById(driverId).orElseThrow(() -> new RuntimeException("Driver not found")));
+
+            // UPDATE PICKUP LOCATION TO LATEST FARMER LOCATION
+            if (order.getFarmer() != null) {
+                // Determine latest location
+                Double latestLat = order.getFarmer().getLatitude();
+                Double latestLng = order.getFarmer().getLongitude();
+
+                if (latestLat != null && latestLng != null) {
+                    order.setPickupLatitude(latestLat);
+                    order.setPickupLongitude(latestLng);
+                }
+            }
+
             order.setStatus(OrderStatus.ready_to_ship); // Driver assigned
             return orderRepository.save(order);
         }).orElseThrow(() -> new RuntimeException("Order not found"));

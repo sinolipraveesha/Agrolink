@@ -1,19 +1,13 @@
 package com.agrolink.backend.service;
 
 import com.agrolink.backend.model.DriverLocation;
-import com.agrolink.backend.model.Profile;
 import com.agrolink.backend.repository.DriverLocationRepository;
 import com.agrolink.backend.repository.ProfileRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.UUID;
-
-import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.GeometryFactory;
-import org.locationtech.jts.geom.Point;
-import org.locationtech.jts.geom.PrecisionModel;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
 public class DriverService {
@@ -23,8 +17,6 @@ public class DriverService {
 
     @Autowired
     private ProfileRepository profileRepository;
-
-    private final GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
 
     public DriverLocation updateLocation(UUID driverId, double lat, double lon) {
         // Validation: Verify driver exists
@@ -39,8 +31,8 @@ public class DriverService {
             location.setDriverId(driverId);
         }
 
-        Point point = geometryFactory.createPoint(new Coordinate(lon, lat));
-        location.setCurrentPosition(point);
+        location.setLatitude(lat);
+        location.setLongitude(lon);
         location.setLastUpdated(LocalDateTime.now());
 
         // Default heading if not provided
@@ -57,22 +49,20 @@ public class DriverService {
     }
 
     public double calculateDistanceToWarehouse(UUID driverId, double warehouseLat, double warehouseLon) {
-        Point warehousePoint = geometryFactory.createPoint(new Coordinate(warehouseLon, warehouseLat));
-        Double distance = driverLocationRepository.calculateDistance(driverId, warehousePoint);
+        Double distance = driverLocationRepository.calculateDistance(driverId, warehouseLat, warehouseLon);
         return distance != null ? distance : -1.0;
     }
 
     // Geofencing check
     public boolean checkArrivalAndNotify(UUID driverId, double targetLat, double targetLon) {
-        Point targetPoint = geometryFactory.createPoint(new Coordinate(targetLon, targetLat));
-        boolean arrived = driverLocationRepository.isDriverWithinRadius(driverId, targetPoint, 500.0); // 500 meters
+        Boolean arrived = driverLocationRepository.isDriverWithinRadius(driverId, targetLat, targetLon, 500.0); // 500
+                                                                                                                // meters
 
-        if (arrived) {
+        if (Boolean.TRUE.equals(arrived)) {
             System.out.println("Driver " + driverId + " has arrived at the destination!");
             // Here you would trigger notification or update status
-            // notificationService.sendNotification(driverId, "You have arrived!");
         }
 
-        return arrived;
+        return Boolean.TRUE.equals(arrived);
     }
 }

@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { Truck, MapPin, Package, Clock, AlertTriangle, Navigation, Star, User, X } from 'lucide-react';
 import { useLiveLocation } from '../../hooks/useLiveLocation';
 import { useTrackFarmer } from '../../hooks/useFarmerTracking'; // Add live farmer tracking
 import { supabase } from '../../lib/supabaseClient';
@@ -12,7 +11,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { connectWebSocket, sendLocation, disconnectWebSocket } from '../../services/websocketService';
-import { Lock, Globe, Terminal } from 'lucide-react'; // Added icons for security warnings
+import { Lock, Globe, Terminal, RefreshCw, AlertTriangle, Navigation, Star, User, X, Truck, MapPin, Package, Clock } from 'lucide-react';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -106,10 +105,15 @@ export default function DriverDashboard() {
     }, [liveLocation, activeRoute]);
 
     // Geofencing Check
+    const [pickupDistance, setPickupDistance] = useState(null);
+    const [dropoffDistance, setDropoffDistance] = useState(null);
+
     useEffect(() => {
         if (!driverLocation || !currentJob) {
             setIsNearPickup(false);
             setIsNearDropoff(false);
+            setPickupDistance(null);
+            setDropoffDistance(null);
             return;
         }
 
@@ -119,6 +123,7 @@ export default function DriverDashboard() {
                 driverLocation.lat, driverLocation.lng,
                 currentJob.pickup_lat, currentJob.pickup_lng
             );
+            setPickupDistance(dist);
             setIsNearPickup(dist <= GEOFENCE_RADIUS_KM);
         }
 
@@ -128,34 +133,113 @@ export default function DriverDashboard() {
                 driverLocation.lat, driverLocation.lng,
                 currentJob.delivery_lat, currentJob.delivery_lng
             );
+            setDropoffDistance(dist);
             setIsNearDropoff(dist <= GEOFENCE_RADIUS_KM);
         }
 
     }, [driverLocation, currentJob]);
 
-    useEffect(() => {
-        const fetchJobs = async () => {
-            try {
-                // Fetch available jobs (Using backend endpoint)
-                const res = await fetch(`/api/orders?status=ready_to_ship`);
-                const data = await res.json();
-                // setAvailableJobs(data); // This state variable is not defined in the original code
+    // Fetch available jobs (Nearby) & My Ongoing Job
+    const fetchAllJobs = async (lat, lng) => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
 
-                // Also check for active jobs (accepted/picked_up)
-                const activeRes = await fetch(`/api/orders?status=accepted`);
-                const activeData = await activeRes.json();
-                if (activeData.length > 0) {
-                    // Start job logic if needed
-                }
-
-            } catch (error) {
-                console.error("Error fetching jobs:", error);
-            } finally {
-                // setLoading(false); // This state variable is not defined in the original code
+            // 1. Fetch available jobs (Nearby)
+            const nearbyRes = await fetch(`/api/orders/nearby?lat=${lat}&lon=${lng}`);
+            if (nearbyRes.ok) {
+                const nearbyOrders = await nearbyRes.json();
+                const mappedLoads = nearbyOrders.map(o => ({
+                    id: o.id,
+                    description: o.items ? o.items.map(i => i.product ? i.product.name : i.customItemName).join(', ') : 'Delivery',
+                    price: o.totalAmount,
+                    pickup_address: o.pickupAddress || (o.pickupLatitude ? `Lat: ${o.pickupLatitude.toFixed(4)}, Lng: ${o.pickupLongitude.toFixed(4)}` : 'Farm Location'),
+                    dropoff_address: o.deliveryAddress,
+                    pickup_lat: o.pickupLatitude,
+                    pickup_lng: o.pickupLongitude,
+                    delivery_lat: o.deliveryLatitude,
+                    delivery_lng: o.deliveryLongitude,
+                    status: o.status,
+                    farmer_id: o.farmer ? o.farmer.id : null
+                }));
+                setLoads(mappedLoads);
             }
-        };
 
-        fetchJobs();
+            // 2. Fetch My Active Job
+            const myRes = await fetch(`/api/orders?driverId=${user.id}`);
+            if (myRes.ok) {
+                const myOrders = await myRes.json();
+                // Find unfinished job
+                const active = myOrders.find(o => ['ready_to_ship', 'shipped'].includes(o.status));
+
+                if (active) {
+                    console.log("🚦 Active Job Found:", active);
+
+                    // Prevent over-writing if we JUST cancelled it locally and backend is lagging slightly
+                    if (currentJob && currentJob.id === active.id && jobStatus === 'cancelled') {
+                        return;
+                    }
+
+                    const mappedActive = {
+                        id: active.id,
+                        description: active.items ? active.items.map(i => i.product ? i.product.name : (i.customItemName || 'Item')).join(', ') : 'Delivery',
+                        price: active.totalAmount,
+                        pickup_address: active.pickupAddress || (active.pickupLatitude ? `Lat: ${active.pickupLatitude.toFixed(4)}, Lng: ${active.pickupLongitude.toFixed(4)}` : 'Farm Location'),
+                        dropoff_address: active.deliveryAddress,
+                        pickup_lat: active.pickupLatitude || (active.farmer ? active.farmer.latitude : null),
+                        pickup_lng: active.pickupLongitude || (active.farmer ? active.farmer.longitude : null),
+                        delivery_lat: active.deliveryLatitude || (active.buyer ? active.buyer.latitude : null),
+                        delivery_lng: active.deliveryLongitude || (active.buyer ? active.buyer.longitude : null),
+                        status: active.status,
+                        farmer_id: active.farmer ? active.farmer.id : null
+                    };
+
+                    // Only update if it's different to avoid re-renders
+                    if (!currentJob || currentJob.id !== mappedActive.id) {
+                        setCurrentJob(mappedActive);
+                        setJobStatus(active.status);
+
+                        // Set route to destination based on status
+                        if (lat && lng) {
+                            if (active.status === 'ready_to_ship') {
+                                setActiveRoute({ from: { lat, lng }, to: { lat: mappedActive.pickup_lat, lng: mappedActive.pickup_lng } });
+                            } else if (active.status === 'shipped') {
+                                setActiveRoute({ from: { lat, lng }, to: { lat: mappedActive.delivery_lat, lng: mappedActive.delivery_lng } });
+                            }
+                        }
+                    }
+                } else {
+                    // No active job found on server
+                    if (currentJob) {
+                        // We had one locally, but server says none. Clear it.
+                        setCurrentJob(null);
+                        setJobStatus(null);
+                        setActiveRoute(null);
+                        setRoutePath(null);
+                    }
+                }
+            }
+        } catch (e) {
+            console.error("Fetch jobs error:", e);
+        }
+    };
+
+    // Trigger fetch on location update (with throttling or once-stable)
+    const lastFetchRef = useRef(0);
+    useEffect(() => {
+        if (liveLocation && Date.now() - lastFetchRef.current > 10000) { // Check every 10s
+            fetchAllJobs(liveLocation.lat, liveLocation.lng);
+            lastFetchRef.current = Date.now();
+        }
+    }, [liveLocation]);
+
+    // Initial load ensure we fetch even if GPS delays
+    useEffect(() => {
+        const init = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) fetchAllJobs(0, 0); // Try fetch active job even without loc
+        };
+        init();
     }, []);
 
     // New states for reviews
@@ -164,15 +248,14 @@ export default function DriverDashboard() {
     const [showReviews, setShowReviews] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
 
-    // Fetch Loads & Driver Profile from Supabase + Backend
+    // Fetch Driver Profile (Rating/Reviews) and Initial Jobs
     useEffect(() => {
         const fetchInitialData = async () => {
             const { data: { user } } = await supabase.auth.getUser();
-            let currentLoc = driverLocation;
+            if (!user) return;
 
-            // 1. Fetch Driver's Last Known Location ONCE on mount
-            if (!driverLocationLoaded.current && user) {
-                console.log("📦 Fetching last known location for driver...");
+            // 1. Last Known Location fallback if GPS isn't ready
+            if (!driverLocationLoaded.current) {
                 const { data: profile } = await supabase
                     .from('profiles')
                     .select('latitude, longitude')
@@ -182,11 +265,11 @@ export default function DriverDashboard() {
                 if (profile?.latitude && profile?.longitude) {
                     const savedLoc = { lat: profile.latitude, lng: profile.longitude, isSaved: true };
                     setDriverLocation(savedLoc);
-                    console.log("✅ Loaded last known location:", savedLoc);
+                    fetchAllJobs(profile.latitude, profile.longitude);
                 }
                 driverLocationLoaded.current = true;
 
-                // Fetch Reviews from Backend (one time)
+                // 2. Fetch Reviews/Rating
                 try {
                     const res = await fetch(`/api/reviews/profile/${user.id}`);
                     if (res.ok) {
@@ -197,54 +280,13 @@ export default function DriverDashboard() {
                             setAverageRating(total / data.length);
                         }
                     }
-                } catch (e) {
-                    // Silent fail
-                }
-            }
-
-            // 2. Fetch Active Loads (Accepted by Farmer)
-            // Also check if driver has any ongoing job
-            if (user) {
-                try {
-                    // Check for current active job for this driver
-                    // We can filter orders by driverId and status != delivered/cancelled
-                    // For now, simpler approach: fetch all and filter client side or use a specific endpoint
-                    // Ideally backend should provide "my-active-job"
-
-                    const res = await fetch(`/api/orders?status=accepted`);
-                    if (res.ok) {
-                        const orders = await res.json();
-
-                        // Filter for available loads (no driver yet or driver is me)
-                        // This logic might need refinement based on backend 'accepted' vs 'driver assigned' logic
-                        const availableLoads = orders.filter(o => !o.driver || o.driver.id !== user.id); // Show only unassigned
-                        // const myJobs = orders.filter(o => o.driver && o.driver.id === user.id); // This endpoint filters by status 'accepted', so it might not show 'assigned' ones if status changes.
-
-                        const mappedLoads = availableLoads.map(o => ({
-                            id: o.id,
-                            description: o.items ? o.items.map(i => i.product ? i.product.name : i.customItemName).join(', ') : 'Delivery',
-                            price: o.totalAmount,
-                            pickup_address: o.pickupAddress || (o.pickupLatitude ? `Lat: ${o.pickupLatitude.toFixed(4)}, Lng: ${o.pickupLongitude.toFixed(4)}` : 'Farm Location'),
-                            dropoff_address: o.deliveryAddress,
-                            distance_km: '...',
-                            pickup_lat: o.pickupLatitude,
-                            pickup_lng: o.pickupLongitude,
-                            delivery_lat: o.deliveryLatitude,
-                            delivery_lng: o.deliveryLongitude,
-                            status: o.status,
-                            farmer_id: o.farmer ? o.farmer.id : null
-                        }));
-                        setLoads(mappedLoads);
-                    }
-                } catch (e) {
-                    console.error("Backend fetch failed", e);
-                }
+                } catch (e) { }
             }
         };
 
         fetchInitialData();
-        // Removed 30s interval to prevent live location flicker
-    }, []); // Run ONCE on mount
+    }, []);
+    // Run ONCE on mount
 
     // Check for active job logic
     // We need to know if the driver already has an active job. 
@@ -393,6 +435,53 @@ export default function DriverDashboard() {
         }
     };
 
+    // Handle Cancel Job (Manual override for stuck orders)
+    const handleCancelJob = async () => {
+        if (!confirm("Are you sure you want to cancel ALL active jobs? This will clear your dashboard.")) return;
+
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            // 1. Fetch all jobs for this driver
+            const res = await fetch(`/api/orders?driverId=${user.id}`);
+            if (res.ok) {
+                const myOrders = await res.json();
+                // 2. Find ALL active jobs (not just the one currrently showing)
+                const activeOrders = myOrders.filter(o => ['ready_to_ship', 'shipped', 'accepted'].includes(o.status));
+
+                if (activeOrders.length === 0) {
+                    alert("No active jobs found to cancel.");
+                    return;
+                }
+
+                console.log(`Found ${activeOrders.length} active jobs to cancel.`);
+
+                // 3. Cancel them all in parallel
+                await Promise.all(activeOrders.map(order =>
+                    fetch(`/api/orders/${order.id}/status?status=cancelled`, { method: 'PUT' })
+                ));
+
+                // 4. Reset Dashboard State
+                setJobStatus(null);
+                setCurrentJob(null);
+                setActiveRoute(null);
+                setRoutePath(null);
+                alert(`Successfully cancelled ${activeOrders.length} active job(s).`);
+
+                // Refresh loads list
+                if (driverLocation) {
+                    fetchAllJobs(driverLocation.lat, driverLocation.lng);
+                }
+            } else {
+                alert("Failed to fetch jobs for cancellation.");
+            }
+        } catch (e) {
+            console.error("Cancel error:", e);
+            alert("Error cancelling jobs. Please check connection.");
+        }
+    };
+
 
     // Fetch actual road route when activeRoute changes
     useEffect(() => {
@@ -491,475 +580,278 @@ export default function DriverDashboard() {
     }
 
     return (
-        <div className="h-[calc(100vh-100px)] flex flex-col md:flex-row gap-4">
-            {/* Left Sidebar */}
-            <div className="md:w-1/3 bg-white rounded-xl shadow-lg border border-gray-100 flex flex-col overflow-hidden">
-
-                {/* Driver Profile Header */}
-                <div className="bg-[#1a7935] p-4 text-white">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <h2 className="text-xl font-bold flex items-center gap-2">
-                                <User className="h-5 w-5" /> Driver Dashboard
-                            </h2>
-                            <div className="flex items-center gap-2 mt-2 cursor-pointer hover:bg-white/10 p-1 rounded transition-colors" onClick={() => setShowReviews(true)}>
-                                <div className="flex bg-white/20 px-2 py-1 rounded">
-                                    <Star className="h-4 w-4 text-yellow-300 fill-current mr-1" />
-                                    <span className="font-bold text-sm">{averageRating.toFixed(1)}</span>
-                                </div>
-                                <span className="text-xs text-green-100 hover:underline">{reviews.length} Reviews</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Status Bar - Auto Online */}
-                <div className="p-3 bg-gray-50 border-b flex flex-col gap-2">
-                    <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold text-gray-500 uppercase">Status</span>
-                        <div className="flex items-center gap-2">
-                            <div className={`h-2.5 w-2.5 rounded-full animate-pulse ${isSimulating ? 'bg-purple-500' : liveStatus === 'live' ? 'bg-green-500' :
-                                liveStatus === 'weak_signal' ? 'bg-yellow-500' :
-                                    liveStatus === 'connecting' ? 'bg-blue-500' :
-                                        'bg-gray-400'
+        <div className="relative h-full flex flex-col font-sans overflow-hidden bg-gray-50">
+            {/* --- COMPACT TOP CONTROLS --- */}
+            <div className="absolute top-4 left-4 right-4 z-[1000] flex flex-col gap-2 pointer-events-none">
+                <div className="flex items-center justify-between pointer-events-auto">
+                    {/* Status & Sim - Minimalist */}
+                    <div className="flex items-center gap-2">
+                        <div className="bg-white/90 backdrop-blur-md border border-gray-100 shadow-xl rounded-2xl px-3 py-2 flex items-center gap-2">
+                            <div className={`h-2 w-2 rounded-full ${isSimulating ? 'bg-purple-500 animate-pulse' :
+                                liveStatus === 'live' ? 'bg-green-500' :
+                                    'bg-gray-400'
                                 }`} />
-                            <span className="text-sm font-medium text-gray-700">
-                                {isSimulating ? 'Simulating Route 🔄' : isOnline ? (
-                                    liveStatus === 'live' ? 'Online & Tracking' :
-                                        liveStatus === 'error' ? 'GPS Error ⚠️' :
-                                            'Connecting...'
-                                ) : 'Offline'}
+                            <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">
+                                {isSimulating ? 'Sim' : liveStatus === 'live' ? 'Live' : 'Offline'}
                             </span>
                         </div>
+
+                        <button
+                            onClick={() => toggleOnline(true, !isSimulating)}
+                            className={`shadow-xl p-2 rounded-xl border transition-all active:scale-90 ${isSimulating ? 'bg-purple-600 text-white border-purple-400' : 'bg-white/90 backdrop-blur-md text-gray-500 border-gray-100'
+                                }`}
+                        >
+                            <RefreshCw className={`h-4 w-4 ${isSimulating ? 'animate-spin' : ''}`} />
+                        </button>
                     </div>
 
-                    {/* Simulation Toggle */}
-                    <button
-                        onClick={() => toggleOnline(true, !isSimulating)}
-                        className={`w-full py-1.5 rounded text-xs font-bold border transition-colors ${isSimulating
-                            ? 'bg-purple-100 text-purple-700 border-purple-200 hover:bg-purple-200'
-                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
-                            }`}
-                    >
-                        {isSimulating ? 'Stop Simulation' : 'Enable Simulation Mode (Test)'}
-                    </button>
-                </div>
-
-                {/* Job Control Panel (If Active Job) */}
-                {currentJob && (
-                    <div className="bg-blue-50 p-4 border-b border-blue-200">
-                        <h3 className="font-bold text-blue-800 mb-2 flex items-center gap-2">
-                            <Truck className="h-4 w-4" /> Current Active Job
-                        </h3>
-                        <div className="text-sm text-blue-900 mb-3 space-y-1">
-                            <p><strong>Job ID:</strong> {currentJob.id.substring(0, 8)}...</p>
-                            <p><strong>Status:</strong> <span className="uppercase">{jobStatus}</span></p>
+                    {/* Minimal Diagnostic (Only show critical if needed, or tiny) */}
+                    {driverLocation && (
+                        <div className="bg-black/70 backdrop-blur-sm text-[#00ff41] px-3 py-1.5 rounded-lg text-[9px] font-mono shadow-xl flex items-center gap-3">
+                            <span>±{Math.round(driverLocation.accuracy)}m</span>
+                            <div className="w-[1px] h-2 bg-white/20" />
+                            <span>{new Date(driverLocation.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
-
-                        {jobStatus === 'ready_to_ship' && (
-                            <div className="space-y-2">
-                                <button
-                                    onClick={handleConfirmPickup}
-                                    disabled={!isNearPickup}
-                                    className={`w-full py-2 rounded-lg font-bold transition flex items-center justify-center gap-2 ${isNearPickup
-                                        ? 'bg-blue-600 text-white hover:bg-blue-700'
-                                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                        }`}
-                                >
-                                    {isNearPickup ? 'Confirm Pickup (At Farmer)' : 'Move Closer to Pickup'}
-                                </button>
-                                {!isNearPickup && (
-                                    <p className="text-xs text-red-500 font-bold text-center">
-                                        * You must be within 200m of the farm.
-                                    </p>
-                                )}
-                            </div>
-                        )}
-
-                        {jobStatus === 'shipped' && (
-                            <div className="space-y-2">
-                                <button
-                                    onClick={handleConfirmDelivery}
-                                    disabled={!isNearDropoff}
-                                    className={`w-full py-2 rounded-lg font-bold transition flex items-center justify-center gap-2 ${isNearDropoff
-                                        ? 'bg-green-600 text-white hover:bg-green-700'
-                                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                        }`}
-                                >
-                                    {isNearDropoff ? 'Confirm Delivery (At Buyer)' : 'Move Closer to Buyer'}
-                                </button>
-                                {!isNearDropoff && (
-                                    <p className="text-xs text-red-500 font-bold text-center">
-                                        * You must be within 200m of the delivery location.
-                                    </p>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {!currentJob && (
-                    <div className="p-2 bg-gray-100 text-gray-500 text-xs font-bold uppercase tracking-wider px-4 py-2 border-b">
-                        Available Loads
-                    </div>
-                )}
-
-
-                {/* Search Bar in Sidebar for clarity */}
-                <form onSubmit={handleSearch} className="p-3 bg-gray-50 border-b flex gap-2">
-                    <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search your city/location..."
-                        className="flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a7935]"
-                    />
-                    <button type="submit" className="bg-[#1a7935] text-white px-3 py-2 rounded-lg text-sm font-bold">
-                        Find
-                    </button>
-                </form>
-
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                    {/* If Active Job, maybe hide available loads or show them disabled? For now, hide if active job exists to focus */}
-                    {currentJob ? (
-                        <div className="text-center text-gray-500 py-10">
-                            <p>You have an active job.</p>
-                            <p className="text-sm">Complete it to see more loads.</p>
-                        </div>
-                    ) : (
-                        loads.length === 0 ? (
-                            <p className="text-center text-gray-500 py-10">No active loads available.</p>
-                        ) : (
-                            loads.map(load => (
-                                <div
-                                    key={load.id}
-                                    onClick={() => setSelectedLoad(load)}
-                                    className={`p-4 border rounded-xl cursor-pointer transition-all ${selectedLoad?.id === load.id ? 'border-[#1a7935] bg-green-50 shadow-md' : 'border-gray-100 hover:border-green-200 hover:bg-gray-50'}`}
-                                >
-                                    <div className="flex justify-between items-start mb-2">
-                                        <h3 className="font-bold text-gray-800">{load.description || "Fresh Produce Delivery"}</h3>
-                                        <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full font-bold">
-                                            LKR {load.price}
-                                        </span>
-                                    </div>
-                                    <div className="text-sm text-gray-600 space-y-1">
-                                        <div className="flex items-center gap-2">
-                                            <MapPin className="h-4 w-4 text-gray-400" />
-                                            <span className="truncate">{load.pickup_address}</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <Package className="h-4 w-4 text-gray-400" />
-                                            <span>To: {load.dropoff_address}</span>
-                                        </div>
-                                    </div>
-
-                                    {selectedLoad?.id === load.id && (
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleAcceptLoad(load);
-                                            }}
-                                            className="mt-3 w-full py-2 bg-[#1a7935] text-white rounded-lg text-sm font-bold hover:bg-[#145d29]"
-                                        >
-                                            Accept Load
-                                        </button>
-                                    )}
-                                </div>
-                            ))
-                        )
                     )}
                 </div>
             </div>
 
-            {/* Right Map Area */}
-            <div className={`transition-all duration-300 ${isFullscreen ? 'fixed inset-0 z-[2000] bg-white' : 'flex-1 bg-white rounded-xl shadow-lg border border-gray-100 relative overflow-hidden flex flex-col'}`}>
+            {/* --- MAIN MAP AREA --- */}
+            <div className="flex-1 relative">
+                <MapContainer
+                    center={driverLocation ? [driverLocation.lat, driverLocation.lng] : [7.8731, 80.7718]}
+                    zoom={driverLocation ? 15 : 7}
+                    className="h-full w-full"
+                    zoomControl={false}
+                >
+                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
-                {/* Fullscreen Close Button */}
-                {isFullscreen && (
-                    <button
-                        onClick={() => setIsFullscreen(false)}
-                        className="absolute top-4 left-4 z-[2100] bg-white shadow-xl p-3 rounded-full text-gray-800 hover:bg-gray-100 border border-gray-200"
-                    >
-                        <X className="h-6 w-6" />
-                    </button>
-                )}
-
-                {/* Expand Hint (Only when job active and NOT fullscreen) */}
-                {currentJob && !isFullscreen && (
-                    <div className="absolute top-4 left-4 z-[1000] pointer-events-none">
-                        <div className="bg-black/60 backdrop-blur-md text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 animate-pulse">
-                            <Navigation className="h-3 w-3" />
-                            Tap map for Fullscreen Navigation
-                        </div>
-                    </div>
-                )}
-
-                {/* Floating Map Controls */}
-                <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
-                    {/* Simulation Toggle */}
-                    <button
-                        onClick={() => toggleOnline(true, !isSimulating)}
-                        className={`shadow-lg px-4 py-2 rounded-lg text-sm font-bold border flex items-center gap-2 transition-colors ${isSimulating ? 'bg-orange-500 text-white border-orange-600' : 'bg-white text-gray-700 border-gray-200'}`}
-                    >
-                        <Truck className="h-4 w-4" />
-                        {isSimulating ? 'Simulating' : 'Start Simulation'}
-                    </button>
-
-                    {isManualCorrection && (
-                        <button
-                            onClick={() => setIsManualCorrection(false)}
-                            className="bg-blue-600 text-white shadow-lg px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 border border-blue-700 flex items-center gap-2"
-                        >
-                            <MapPin className="h-4 w-4" />
-                            Reset to GPS
-                        </button>
+                    {driverLocation && (
+                        <>
+                            <MapRecenter center={driverLocation} follow={shouldFollowDriver} />
+                            <DraggableMarker
+                                position={driverLocation}
+                                onDragEnd={(newPos) => {
+                                    setDriverLocation(newPos);
+                                    setIsManualCorrection(true);
+                                    setShouldFollowDriver(false);
+                                    updateDatabase(newPos.lat, newPos.lng, 0, 0);
+                                }}
+                            />
+                            {routePath && (
+                                <Polyline positions={routePath} color="#1a7935" weight={6} opacity={0.8} />
+                            )}
+                            {activeRoute?.to && (
+                                <Marker position={[activeRoute.to.lat, activeRoute.to.lng]}>
+                                    <Popup>Destination</Popup>
+                                </Marker>
+                            )}
+                        </>
                     )}
 
-                    {activeRoute && (
-                        <button
-                            onClick={() => {
-                                setActiveRoute(null);
-                                setRoutePath(null);
-                            }}
-                            className="bg-white shadow-lg px-4 py-2 rounded-lg text-sm font-bold text-gray-700 hover:bg-gray-50 border border-gray-200 flex items-center gap-2"
-                        >
-                            <X className="h-4 w-4" />
-                            Clear Route
-                        </button>
-                    )}
-                    <button
-                        onClick={() => setShouldFollowDriver(!shouldFollowDriver)}
-                        className={`shadow-lg px-4 py-2 rounded-lg text-sm font-bold border flex items-center gap-2 transition-colors ${shouldFollowDriver ? 'bg-[#1a7935] text-white border-[#1a7935]' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'}`}
-                    >
-                        <Navigation className={`h-4 w-4 ${shouldFollowDriver ? 'fill-current' : ''}`} />
-                        {shouldFollowDriver ? 'Following' : 'Follow Me'}
-                    </button>
-                </div>
-
-                {/* Map Container - now always visible */}
-                <div className="h-full w-full relative">
-                    {/* GPS Status Overlay - Only hide when we have a REAL signal */}
+                    {/* GPS Connection Overlay */}
                     {(liveStatus === 'connecting' || liveStatus === 'error' || liveStatus === 'offline') && (
-                        <div className="absolute inset-0 bg-white/90 z-[2001] flex flex-col items-center justify-center backdrop-blur-xl p-6">
-                            <div className="bg-white p-8 rounded-[40px] shadow-2xl border border-gray-100 flex flex-col items-center max-w-[340px] text-center">
+                        <div className="absolute inset-0 bg-white/80 z-[2001] flex flex-col items-center justify-center backdrop-blur-sm p-6 text-center">
+                            <div className="p-8 bg-white rounded-3xl shadow-xl flex flex-col items-center">
                                 {!window.isSecureContext && window.location.hostname !== 'localhost' ? (
                                     <>
-                                        <div className="bg-red-50 p-6 rounded-full mb-6">
-                                            <Lock className="h-16 w-16 text-red-500" />
-                                        </div>
-                                        <h3 className="font-bold text-2xl text-gray-800">Connection Insecure</h3>
-                                        <p className="text-sm text-gray-500 mt-4 leading-relaxed">
-                                            Browsers block GPS on <span className="font-bold text-red-600 underline">HTTP</span> connections (IP addresses).
-                                        </p>
-                                        <div className="mt-6 p-4 bg-gray-50 rounded-2xl w-full text-left">
-                                            <p className="text-[11px] font-bold text-gray-400 uppercase mb-2">Solution for Testing:</p>
-                                            <code className="text-[10px] block bg-black text-green-400 p-2 rounded mb-2 font-mono">
-                                                npx localtunnel --port 5173
-                                            </code>
-                                            <p className="text-[10px] text-gray-400">Use the <span className="font-bold text-green-600">https://</span> link provided by the command above on your phone.</p>
-                                        </div>
+                                        <Lock className="h-12 w-12 text-red-500 mb-4" />
+                                        <h3 className="font-bold text-lg text-gray-800">Insecure Connection</h3>
+                                        <p className="text-xs text-gray-500 mt-2">GPS requires HTTPS.</p>
                                     </>
                                 ) : (
                                     <>
-                                        <div className="relative mb-8">
-                                            <div className="absolute inset-0 animate-ping bg-green-100 rounded-full scale-150 opacity-20"></div>
-                                            <div className="relative animate-spin rounded-full h-16 w-16 border-4 border-gray-100 border-t-[#1a7935]"></div>
-                                            <Globe className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-6 w-6 text-[#1a7935]" />
-                                        </div>
-                                        <h3 className="font-bold text-2xl text-gray-800">Searching...</h3>
-                                        <p className="text-sm text-gray-500 mt-4">
-                                            {gpsError || "Standing by for high-accuracy hardware GPS signal. Please move outdoors."}
-                                        </p>
+                                        <div className="animate-spin rounded-full h-12 w-12 border-4 border-gray-100 border-t-[#1a7935] mb-4"></div>
+                                        <h3 className="font-bold text-lg text-gray-800">Finding Satellites...</h3>
+                                        <button
+                                            onClick={() => toggleOnline(true, true)}
+                                            className="mt-4 text-xs text-[#1a7935] font-bold underline cursor-pointer hover:text-green-700"
+                                        >
+                                            Taking too long? Use Default Location
+                                        </button>
                                     </>
                                 )}
-
-                                <div className="mt-8 flex flex-col gap-3 w-full">
-                                    <button
-                                        onClick={() => toggleOnline(true, false)}
-                                        className="w-full bg-[#1a7935] text-white font-bold py-4 rounded-2xl hover:bg-[#15612a] transition-all shadow-lg active:scale-95"
-                                    >
-                                        RETRY GPS HARDWARE
-                                    </button>
-                                    <button
-                                        onClick={() => toggleOnline(true, true)}
-                                        className="w-full bg-white text-gray-400 font-bold py-3 rounded-xl border border-gray-100 text-xs"
-                                    >
-                                        ENTER SIMULATION MODE
-                                    </button>
-                                </div>
                             </div>
                         </div>
                     )}
+                </MapContainer>
 
-                    {/* GPS Info Diagnostic Header */}
-                    {driverLocation && (
-                        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none">
-                            <div className="bg-black/70 backdrop-blur-md text-white px-4 py-2 rounded-full text-[10px] font-mono flex items-center gap-4 shadow-xl">
-                                <div className="flex items-center gap-1">
-                                    <div className={`h-2 w-2 rounded-full ${driverLocation.isSaved ? 'bg-orange-500 animate-pulse' : 'bg-green-500'}`} />
-                                    <span>{driverLocation.isSaved ? 'SAVED (STALE)' : 'LIVE GPS'}</span>
-                                </div>
-                                <div className="flex items-center gap-2 border-l border-white/20 pl-4">
-                                    {window.isSecureContext ? <Lock className="h-3 w-3 text-green-400" /> : <AlertTriangle className="h-3 w-3 text-red-500 animate-pulse" />}
-                                    <span className={window.isSecureContext ? 'text-green-400' : 'text-red-500'}>
-                                        {window.location.protocol.toUpperCase().replace(':', '')}
-                                    </span>
-                                </div>
-                                <span>{driverLocation.lat.toFixed(6)}, {driverLocation.lng.toFixed(6)}</span>
-                                <span className={driverLocation.accuracy > 50 ? 'text-yellow-400' : 'text-green-400'}>
-                                    ±{Math.round(driverLocation.accuracy || 0)}m
-                                </span>
-                                {driverLocation.timestamp && (
-                                    <span className={`font-bold ${Date.now() - driverLocation.timestamp > 15000 ? 'text-red-500 animate-pulse' : 'text-gray-400'}`}>
-                                        {new Date(driverLocation.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                                        {Date.now() - driverLocation.timestamp > 15000 && " (STALE)"}
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    <div
-                        className="h-full w-full relative"
-                        onClick={() => { if (currentJob) setIsFullscreen(true); }}
+                {/* --- COMPACT MAP CONTROLS --- */}
+                <div className="absolute right-4 bottom-4 z-[1001] flex flex-col gap-2">
+                    <button
+                        onClick={() => setShouldFollowDriver(!shouldFollowDriver)}
+                        className={`p-3 rounded-xl shadow-xl border transition-all active:scale-95 ${shouldFollowDriver ? 'bg-[#1a7935] text-white' : 'bg-white/90 backdrop-blur-md text-gray-600 border-gray-100'}`}
                     >
-                        {/* MapContainer with a default center if driverLocation is still null */}
-                        <MapContainer
-                            center={driverLocation ? [driverLocation.lat, driverLocation.lng] : [7.8731, 80.7718]}
-                            zoom={driverLocation ? 13 : 8}
-                            className="h-full w-full"
-                        >
-                            <TileLayer
-                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                            />
-
-                            {/* Signal Diagnostics overlay */}
-                            <div className="absolute top-20 left-4 z-[1000] pointer-events-none">
-                                {liveStatus === 'weak_signal' && (
-                                    <div className="bg-orange-100 text-orange-700 px-3 py-2 rounded-lg border border-orange-200 shadow-sm flex items-center gap-2 text-xs font-bold animate-pulse">
-                                        <AlertTriangle className="h-4 w-4" />
-                                        <span>Weak GPS Signal</span>
-                                    </div>
-                                )}
-                                {liveStatus === 'simulating' && (
-                                    <div className="bg-blue-100 text-blue-700 px-3 py-2 rounded-lg border border-blue-200 shadow-sm flex items-center gap-2 text-xs font-bold">
-                                        <Truck className="h-4 w-4" />
-                                        <span>SIMULATION ACTIVE</span>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Signal Type Indicator */}
-                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] pointer-events-none">
-                                {liveStatus === 'weak_signal' && (
-                                    <div className="bg-white/90 backdrop-blur px-4 py-2 rounded-full border border-orange-200 shadow-lg flex items-center gap-2 text-[10px] font-bold text-orange-700 whitespace-nowrap">
-                                        <AlertTriangle className="h-3 w-3" />
-                                        <span>WEAK GPS SIGNAL - PLEASE MOVE TO CLEAR AREA</span>
-                                    </div>
-                                )}
-                            </div>
-
-                            {driverLocation && (
-                                <>
-                                    {/* Auto-centering helper */}
-                                    <MapRecenter center={driverLocation} follow={shouldFollowDriver} />
-
-                                    <DraggableMarker
-                                        position={driverLocation}
-                                        onDragEnd={(newPos) => {
-                                            setDriverLocation(newPos);
-                                            setIsManualCorrection(true);
-                                            setShouldFollowDriver(false);
-                                            updateDatabase(newPos.lat, newPos.lng, 0, 0);
-                                        }}
-                                    />
-
-                                    {/* Route Polyline (if active) */}
-                                    {routePath && (
-                                        <Polyline
-                                            positions={routePath}
-                                            color="#1a7935"
-                                            weight={5}
-                                            opacity={0.7}
-                                            dashArray="10, 10"
-                                        />
-                                    )}
-
-                                    {/* Destination Marker */}
-                                    {activeRoute?.to && (
-                                        <Marker position={[activeRoute.to.lat, activeRoute.to.lng]}>
-                                            <Popup>Destination</Popup>
-                                        </Marker>
-                                    )}
-                                </>
-                            )}
-
-                            {/* ... existing markers logic ... */}
-                        </MapContainer>
-                    </div>
+                        <Navigation className={`h-5 w-5 ${shouldFollowDriver ? 'fill-current' : ''}`} />
+                    </button>
+                    {isManualCorrection && (
+                        <button onClick={() => setIsManualCorrection(false)} className="bg-blue-600 text-white p-3 rounded-xl shadow-xl active:scale-95">
+                            <MapPin className="h-5 w-5" />
+                        </button>
+                    )}
                 </div>
+
+                {/* --- SEARCHBAR (Subtle) --- */}
+                {!currentJob && (
+                    <div className="absolute top-20 left-4 right-4 z-[1001] sm:top-4 sm:left-auto sm:right-20">
+                        <form onSubmit={handleSearch} className="relative max-w-xs mx-auto">
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="Search city..."
+                                className="w-full bg-white/90 backdrop-blur-md border border-gray-100 shadow-lg rounded-xl pl-4 pr-12 py-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#1a7935]/20"
+                            />
+                            <button type="submit" className="absolute right-1.5 top-1.5 bottom-1.5 bg-[#1a7935] text-white px-3 rounded-lg text-[10px] font-bold">
+                                Find
+                            </button>
+                        </form>
+                    </div>
+                )}
             </div>
 
-            {/* Reviews Modal */}
-            {
-                showReviews && (
-                    <div className="fixed inset-0 bg-black/50 z-[1000] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in" onClick={() => setShowReviews(false)}>
-                        <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
-                            <div className="p-4 border-b flex justify-between items-center bg-gray-50">
-                                <h3 className="font-bold text-lg text-gray-800 flex items-center gap-2">
-                                    <Star className="h-5 w-5 text-yellow-400 fill-current" />
-                                    My Ratings & Reviews
-                                </h3>
-                                <button onClick={() => setShowReviews(false)} className="text-gray-400 hover:text-gray-600">
-                                    <X className="h-6 w-6" />
-                                </button>
+            {/* --- COMPACT BOTTOM PANEL --- */}
+            <div className="bg-white rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.08)] z-[1050] border-t border-gray-50 flex flex-col max-h-[40vh] transition-all">
+                <div className="w-12 h-1 bg-gray-100 rounded-full mx-auto my-3" />
+
+                <div className="px-6 pb-6 overflow-y-auto">
+                    {currentJob ? (
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-start pt-2">
+                                <div>
+                                    <p className="text-[10px] font-bold text-[#1a7935] uppercase tracking-widest mb-0.5">Active Job</p>
+                                    <h3 className="text-lg font-black text-gray-800 leading-tight">{currentJob.description}</h3>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-lg font-black text-gray-900 tracking-tighter">Rs.{currentJob.price}</p>
+                                </div>
                             </div>
 
-                            <div className="p-6 overflow-y-auto">
-                                <div className="text-center mb-6">
-                                    <div className="text-5xl font-bold text-gray-800">{averageRating.toFixed(1)}</div>
-                                    <div className="flex justify-center gap-1 my-2">
-                                        {[1, 2, 3, 4, 5].map((star) => (
-                                            <Star
-                                                key={star}
-                                                className={`h-6 w-6 ${star <= Math.round(averageRating) ? 'text-yellow-400 fill-current' : 'text-gray-200'}`}
-                                            />
-                                        ))}
-                                    </div>
-                                    <p className="text-gray-500 text-sm">Based on {reviews.length} reviews</p>
-                                </div>
+                            <div className="relative flex items-center justify-between px-4 py-6 bg-gray-50 rounded-2xl">
+                                <div className="absolute left-10 right-10 h-0.5 bg-gray-200 z-0" />
+                                <div className="absolute left-10 h-0.5 bg-[#1a7935] z-0 transition-all duration-700" style={{ width: jobStatus === 'shipped' ? 'calc(100% - 80px)' : '50%' }} />
 
-                                <div className="space-y-4">
-                                    {reviews.length === 0 ? (
-                                        <p className="text-center text-gray-500 italic">No reviews yet.</p>
-                                    ) : (
-                                        reviews.map((review) => (
-                                            <div key={review.id} className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div className="flex items-center gap-1">
-                                                        {[...Array(5)].map((_, i) => (
-                                                            <Star
-                                                                key={i}
-                                                                className={`h-3 w-3 ${i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
-                                                            />
-                                                        ))}
+                                <div className={`relative z-10 h-10 w-10 rounded-xl flex items-center justify-center border-2 ${jobStatus === 'ready_to_ship' ? 'bg-[#1a7935] border-green-100 text-white shadow-lg' : 'bg-white border-green-500 text-[#1a7935]'}`}>
+                                    <MapPin className="h-5 w-5" />
+                                </div>
+                                <div className={`relative z-10 h-10 w-10 rounded-xl flex items-center justify-center border-2 ${jobStatus === 'shipped' ? 'bg-[#1a7935] border-green-100 text-white shadow-lg' : 'bg-white border-gray-200 text-gray-300'}`}>
+                                    <Package className="h-5 w-5" />
+                                </div>
+                            </div>
+
+                            {jobStatus === 'ready_to_ship' && (
+                                <div className="space-y-2">
+                                    <button onClick={handleConfirmPickup} disabled={!isNearPickup} className={`w-full py-4 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all flex flex-col items-center justify-center gap-1 ${isNearPickup ? 'bg-[#1a7935] text-white shadow-lg' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>
+                                        <span>{isNearPickup ? 'Verify Pickup' : 'Heading to Pickup'}</span>
+                                        {!isNearPickup && pickupDistance && (
+                                            <span className="text-[8px] opacity-60">{(pickupDistance * 1000).toFixed(0)}m remaining</span>
+                                        )}
+                                    </button>
+                                    <button onClick={handleCancelJob} className="w-full py-3 bg-red-50 text-red-500 rounded-xl font-bold uppercase tracking-widest text-[9px] hover:bg-red-100 transition-colors">
+                                        Cancel Job
+                                    </button>
+                                </div>
+                            )}
+
+                            {jobStatus === 'shipped' && (
+                                <div className="space-y-2">
+                                    <button onClick={handleConfirmDelivery} disabled={!isNearDropoff} className={`w-full py-4 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all flex flex-col items-center justify-center gap-1 ${isNearDropoff ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>
+                                        <span>{isNearDropoff ? 'Complete Trip' : 'Heading to Buyer'}</span>
+                                        {!isNearDropoff && dropoffDistance && (
+                                            <span className="text-[8px] opacity-60">{(dropoffDistance * 1000).toFixed(0)}m remaining</span>
+                                        )}
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Fallback Cancel for any other weird state */}
+                            {jobStatus !== 'ready_to_ship' && jobStatus !== 'shipped' && (
+                                <div className="space-y-2 mt-4">
+                                    <button onClick={handleCancelJob} className="w-full py-3 bg-red-50 text-red-500 rounded-xl font-bold uppercase tracking-widest text-[9px] hover:bg-red-100 transition-colors">
+                                        Force Cancel Active Job
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between pt-1">
+                                <h3 className="text-xl font-black text-gray-800">New Loads</h3>
+                                <span className="bg-[#1a7935]/10 text-[#1a7935] text-[9px] font-black px-3 py-1 rounded-full uppercase">{loads.length} Near You</span>
+                            </div>
+
+                            {loads.length === 0 ? (
+                                <div className="text-center py-8 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">No loads nearby</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2 max-h-[25vh] overflow-y-auto pr-1">
+                                    {loads.map(load => (
+                                        <div key={load.id} onClick={() => setSelectedLoad(load)} className={`p-4 rounded-2xl border transition-all cursor-pointer ${selectedLoad?.id === load.id ? 'border-[#1a7935] bg-green-50' : 'border-gray-50 bg-gray-50 hover:bg-gray-100'}`}>
+                                            <div className="flex justify-between items-start">
+                                                <div className="flex-1 pr-4">
+                                                    <h4 className="font-bold text-gray-800 text-sm line-clamp-1">{load.description}</h4>
+                                                    <div className="flex items-center gap-1.5 mt-1 text-gray-500">
+                                                        <MapPin className="h-3 w-3" />
+                                                        <span className="text-[10px] truncate max-w-[150px] font-medium uppercase">{load.pickup_address}</span>
                                                     </div>
-                                                    <span className="text-xs text-gray-400">{new Date(review.createdAt).toLocaleDateString()}</span>
                                                 </div>
-                                                <p className="text-gray-600 text-sm italic">"{review.comment}"</p>
-                                                <div className="mt-2 text-xs font-bold text-gray-400">
-                                                    - {review.reviewer?.email?.split('@')[0] || 'Customer'}
+                                                <div className="text-right">
+                                                    <span className="text-sm font-black text-[#1a7935]">Rs.{load.price}</span>
                                                 </div>
                                             </div>
-                                        ))
-                                    )}
+                                            {selectedLoad?.id === load.id && (
+                                                <button onClick={(e) => { e.stopPropagation(); handleAcceptLoad(load); }} className="w-full mt-3 py-2.5 bg-[#1a7935] text-white rounded-xl text-[9px] font-black uppercase tracking-wider animate-in fade-in slide-in-from-top-2">
+                                                    Accept Job
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
                                 </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+            {/* --- REVIEWS MODAL (Optimized) --- */}
+            {showReviews && (
+                <div className="fixed inset-0 z-[3000] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-md px-0 sm:px-4" onClick={() => setShowReviews(false)}>
+                    <div className="bg-white w-full max-w-xl rounded-t-[56px] sm:rounded-[56px] shadow-3xl flex flex-col max-h-[92vh] overflow-hidden animate-in slide-in-from-bottom duration-500" onClick={e => e.stopPropagation()}>
+                        <div className="p-10 border-b border-gray-100 flex justify-between items-center bg-gray-50/30">
+                            <div>
+                                <h3 className="text-3xl font-black text-gray-800 tracking-tighter">My Stats</h3>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-1">Real Customer Activity</p>
                             </div>
+                            <button onClick={() => setShowReviews(false)} className="p-4 bg-white shadow-xl rounded-3xl border border-gray-100 active:scale-90 transition-transform">
+                                <X className="h-8 w-8 text-gray-400" />
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-10 space-y-8">
+                            {reviews.length === 0 ? (
+                                <div className="text-center py-20 px-10">
+                                    <Star className="h-16 w-16 text-gray-100 mx-auto mb-6" />
+                                    <p className="text-gray-400 font-bold uppercase tracking-widest text-sm leading-relaxed">No trip reviews found. Build your reputation by completing loads!</p>
+                                </div>
+                            ) : (
+                                reviews.map((review, idx) => (
+                                    <div key={idx} className="bg-gray-50 p-8 rounded-[48px] border border-gray-100/50">
+                                        <div className="flex justify-between items-center mb-6">
+                                            <div className="flex gap-1">
+                                                {[...Array(5)].map((_, i) => (
+                                                    <Star key={i} className={`h-4 w-4 ${i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-200'}`} />
+                                                ))}
+                                            </div>
+                                            <span className="text-[9px] font-black text-gray-300 uppercase tracking-[0.2em]">{new Date(review.createdAt).toLocaleDateString()}</span>
+                                        </div>
+                                        <p className="text-gray-700 text-md leading-relaxed font-bold italic tracking-tight mb-4">"{review.comment}"</p>
+                                        <p className="text-[10px] font-black text-[#1a7935] uppercase tracking-widest opacity-60">— VERIFIED BUYER</p>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
-                )
-            }
-        </div >
+                </div>
+            )}
+        </div>
     );
 }
