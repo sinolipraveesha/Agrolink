@@ -10,14 +10,17 @@ import {
     Menu,
     X,
     LayoutDashboard,
-    LifeBuoy
+    LifeBuoy,
+    MessageCircle
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import NotificationDropdown from '../common/NotificationDropdown';
+import Chatbot from '../IT24100581/Chatbot';
 
 export default function DriverLayout() {
     const [loading, setLoading] = useState(true);
     const [isSidebarOpen, setSidebarOpen] = useState(true);
+    const [isChatbotOpen, setIsChatbotOpen] = useState(false);
     const [userId, setUserId] = useState(null);
     const navigate = useNavigate();
     const location = useLocation();
@@ -119,6 +122,16 @@ export default function DriverLayout() {
                             <span className="text-sm">{item.label}</span>
                         </button>
                     ))}
+                    <button
+                        onClick={() => {
+                            setIsChatbotOpen(true);
+                            if (window.innerWidth < 768) setSidebarOpen(false);
+                        }}
+                        className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors text-[#b0db3d] hover:bg-white/5 mt-2 border border-[#1a7935]"
+                    >
+                        <MessageCircle className="h-5 w-5" />
+                        <span className="text-sm font-bold">AI Assistant</span>
+                    </button>
                 </nav>
 
                 <div className="absolute bottom-4 left-4 right-4">
@@ -169,6 +182,8 @@ export default function DriverLayout() {
                     <Outlet />
                 </main>
             </div>
+
+            <Chatbot isOpen={isChatbotOpen} onClose={() => setIsChatbotOpen(false)} />
         </div>
     );
 }
