@@ -200,15 +200,43 @@ export default function FarmerDashboard() {
         };
     }, [activeDriver]);
 
-    // Update Route Line
+    // Update Route Line (Real Road Path)
     useEffect(() => {
         if (farmerLocation && activeDriverLocation) {
             // Ensure numbers before setting route
             if (activeDriverLocation.lat && activeDriverLocation.lng) {
-                setRouteLine([
-                    [activeDriverLocation.lat, activeDriverLocation.lng],
-                    [farmerLocation.lat, farmerLocation.lng]
-                ]);
+
+                const fetchRoute = async () => {
+                    try {
+                        // OSRM API call for driving route
+                        const url = `https://router.project-osrm.org/route/v1/driving/${activeDriverLocation.lng},${activeDriverLocation.lat};${farmerLocation.lng},${farmerLocation.lat}?overview=full&geometries=geojson`;
+
+                        const response = await fetch(url);
+                        const data = await response.json();
+
+                        if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+                            const coordinates = data.routes[0].geometry.coordinates;
+                            // OSRM returns [lng, lat], Leaflet needs [lat, lng]
+                            const path = coordinates.map(coord => [coord[1], coord[0]]);
+                            setRouteLine(path);
+                        } else {
+                            // Fallback to straight line if no route found
+                            setRouteLine([
+                                [activeDriverLocation.lat, activeDriverLocation.lng],
+                                [farmerLocation.lat, farmerLocation.lng]
+                            ]);
+                        }
+                    } catch (error) {
+                        console.error('Error fetching route:', error);
+                        // Fallback to straight line on error
+                        setRouteLine([
+                            [activeDriverLocation.lat, activeDriverLocation.lng],
+                            [farmerLocation.lat, farmerLocation.lng]
+                        ]);
+                    }
+                };
+
+                fetchRoute();
             }
         } else {
             setRouteLine(null);
