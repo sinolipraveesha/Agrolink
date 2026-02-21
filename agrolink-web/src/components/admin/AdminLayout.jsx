@@ -14,12 +14,15 @@ import {
     ShieldCheck,
     BarChart3,
     Sprout,
-    LifeBuoy
+    LifeBuoy,
+    MessageCircle
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
+import Chatbot from '../IT24100581/Chatbot';
 
 export default function AdminLayout() {
     const [isSidebarOpen, setSidebarOpen] = useState(true);
+    const [isChatbotOpen, setIsChatbotOpen] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -74,6 +77,13 @@ export default function AdminLayout() {
                             <span className="font-medium text-sm">{item.label}</span>
                         </button>
                     ))}
+                    <button
+                        onClick={() => setIsChatbotOpen(true)}
+                        className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 text-[#b0db3d] hover:bg-[#1a4a26] hover:text-[#b0db3d] mt-2 border border-[#1a4a26]"
+                    >
+                        <MessageCircle className="h-5 w-5" />
+                        <span className="font-medium text-sm">AI Assistant</span>
+                    </button>
                 </nav>
 
                 <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-[#1a4a26]">
@@ -102,6 +112,8 @@ export default function AdminLayout() {
                     <Outlet />
                 </main>
             </div>
+
+            <Chatbot isOpen={isChatbotOpen} onClose={() => setIsChatbotOpen(false)} />
         </div>
     );
 }

@@ -13,16 +13,19 @@ import {
     X,
     Sprout,
     LifeBuoy,
-    Bell
+    Bell,
+    MessageCircle
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { useSyncFarmerLocation } from '../../hooks/useFarmerTracking';
 import NotificationDropdown from '../common/NotificationDropdown';
+import Chatbot from '../IT24100581/Chatbot';
 
 export default function FarmerLayout() {
     const [loading, setLoading] = useState(true);
     const [isSidebarOpen, setSidebarOpen] = useState(true);
+    const [isChatbotOpen, setIsChatbotOpen] = useState(false);
     const [userId, setUserId] = useState(null);
     const navigate = useNavigate();
     const location = useLocation();
@@ -126,6 +129,13 @@ export default function FarmerLayout() {
                             <span>{item.label}</span>
                         </button>
                     ))}
+                    <button
+                        onClick={() => setIsChatbotOpen(true)}
+                        className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors text-white hover:bg-[#145d29] mt-2 border border-[#145d29]"
+                    >
+                        <MessageCircle className="h-5 w-5 text-[#b0db3d]" />
+                        <span className="text-[#b0db3d] font-semibold">AI Assistant</span>
+                    </button>
                 </nav>
 
                 <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-[#145d29]">
@@ -170,6 +180,8 @@ export default function FarmerLayout() {
                     <Outlet />
                 </main>
             </div>
+
+            <Chatbot isOpen={isChatbotOpen} onClose={() => setIsChatbotOpen(false)} />
         </div>
     );
 }
