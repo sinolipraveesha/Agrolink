@@ -28,40 +28,62 @@ export default function Chatbot({ isOpen, onClose }) {
         setIsLoading(true);
 
         try {
-            // LM Studio default local server is http://localhost:1234/v1
-            const response = await fetch('http://localhost:1234/v1/chat/completions', {
+            const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+            if (!apiKey) {
+                throw new Error('Gemini API key is missing. Please check your .env file.');
+            }
+
+            // Prepare conversation history, skipping the initial bot greeting
+            const contents = [];
+            const rawHistory = messages.filter((m, idx) => !(idx === 0 && m.sender === 'bot'));
+            rawHistory.push(userMessage);
+
+            const systemPrompt = "System Instruction: You are a helpful AI assistant for the AgroLink platform.\n\n";
+
+            for (const msg of rawHistory) {
+                const role = msg.sender === 'bot' ? 'model' : 'user';
+
+                // Skip model message if it's somehow the first message
+                if (contents.length === 0 && role === 'model') continue;
+
+                if (contents.length > 0 && contents[contents.length - 1].role === role) {
+                    // Combine adjacent messages of the same role
+                    contents[contents.length - 1].parts[0].text += "\n\n" + msg.text;
+                } else {
+                    const textToPush = contents.length === 0 ? systemPrompt + msg.text : msg.text;
+                    contents.push({ role, parts: [{ text: textToPush }] });
+                }
+            }
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    messages: [
-                        { role: 'system', content: 'You are a helpful AI assistant for the AgroLink platform.' },
-                        ...messages.map(m => ({
-                            role: m.sender === 'bot' ? 'assistant' : 'user',
-                            content: m.text
-                        })),
-                        { role: 'user', content: userMessage.text }
-                    ],
-                    temperature: 0.7,
-                    max_tokens: 500,
-                    stream: false
+                    contents,
+                    generationConfig: {
+                        temperature: 0.7,
+                        maxOutputTokens: 500,
+                    }
                 }),
             });
 
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                const errorData = await response.json();
+                console.error("Gemini API Error details:", errorData);
+                throw new Error(errorData.error?.message || 'Network response was not ok');
             }
 
             const data = await response.json();
-            const botReply = data.choices[0].message.content;
+            const botReply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't generate a response.";
 
             setMessages((prev) => [...prev, { sender: 'bot', text: botReply }]);
         } catch (error) {
-            console.error('Error communicating with LM Studio:', error);
+            console.error('Error communicating with Gemini API:', error);
             setMessages((prev) => [...prev, {
                 sender: 'bot',
-                text: 'Sorry, I am having trouble connecting to the brain (LM Studio). Please ensure the local server is running at http://localhost:1234/v1.'
+                text: `Error connecting to AI Assistant: ${error.message}`
             }]);
         } finally {
             setIsLoading(false);
