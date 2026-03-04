@@ -19,8 +19,8 @@ export default function AdminProductManager() {
         unit: 'Units',
         imageUrl: '',
         category: null,
-        farmerId: '00000000-0000-0000-0000-000000000000', // Assign to a default admin/system farmer ID or handle in backend
-        status: 'approved'
+        adminId: '00000000-0000-0000-0000-000000000000',
+        status: 'available'
     });
 
     const [currentUserId, setCurrentUserId] = useState(null);
@@ -31,24 +31,17 @@ export default function AdminProductManager() {
     }, []);
 
     const getCurrentUser = async () => {
-        console.log("Fetching current user...");
-        const { data: { user }, error } = await supabase.auth.getUser();
-        console.log("User fetched:", user);
-        if (error) console.error("Error fetching user:", error);
-
+        const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-            console.log("Setting farmerId to:", user.id);
             setCurrentUserId(user.id);
-            setFormData(prev => ({ ...prev, farmerId: user.id }));
-        } else {
-            console.warn("No user found in Supabase auth.");
+            setFormData(prev => ({ ...prev, adminId: user.id }));
         }
     };
 
     const fetchData = async () => {
         try {
             const [prodRes, catRes] = await Promise.all([
-                axios.get('/api/products?categoryType=FARMERS_SHOP'),
+                axios.get('/api/farmer-shop-products'),
                 axios.get('/api/categories?type=FARMERS_SHOP')
             ]);
             setProducts(prodRes.data);
@@ -94,24 +87,26 @@ export default function AdminProductManager() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
+            if (!currentUserId) {
+                alert("Please wait for user to load or re-login.");
+                return;
+            }
             const payload = {
-                ...formData,
+                adminId: currentUserId,
+                name: formData.name,
+                description: formData.description,
                 price: parseFloat(formData.price),
-                quantity: parseFloat(formData.quantity),
-                // Ensure category object is structured correctly for backend if needed, or backend handles ID mapping
-                // For this simplistic approach, we send the whole category object selected
+                stockQuantity: parseInt(formData.quantity),
+                unit: formData.unit,
+                imageUrl: formData.imageUrl,
+                category: formData.category ? formData.category.name : '',
+                status: formData.status
             };
 
             if (editingProduct) {
-                await axios.put(`/api/products/${editingProduct.id}`, payload);
+                await axios.put(`/api/farmer-shop-products/${editingProduct.id}`, payload);
             } else {
-                // For create, we might need a valid farmerId. 
-                // Since this is Admin creating "Farmers Shop" items, we might need a dummy Farmer ID or update backend to allow null farmerId for system products.
-                // For now, let's assume the backend requires a UUID. I'll use a placeholder or the user's ID if available.
-                // Assuming the backend handles the mapping or we send a dummy one.
-                // Ideally, we should have a 'System Farmer' or similar. 
-                // Let's rely on the hardcoded dummy zero UUID in formData for now and see if backend accepts it.
-                await axios.post('/api/products', payload);
+                await axios.post('/api/farmer-shop-products', payload);
             }
             fetchData();
             handleCloseModal();
@@ -124,7 +119,7 @@ export default function AdminProductManager() {
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this product?')) {
             try {
-                await axios.delete(`/api/products/${id}`);
+                await axios.delete(`/api/farmer-shop-products/${id}`);
                 fetchData();
             } catch (error) {
                 console.error('Error deleting product:', error);
@@ -137,13 +132,13 @@ export default function AdminProductManager() {
             setEditingProduct(product);
             setFormData({
                 name: product.name,
-                description: product.description,
+                description: product.description || '',
                 price: product.price,
-                quantity: product.quantity,
-                unit: product.unit,
+                quantity: product.stockQuantity || product.quantity,
+                unit: product.unit || 'Units',
                 imageUrl: product.imageUrl,
-                category: product.category,
-                farmerId: product.farmerId,
+                category: categories.find(c => c.name === product.category) || null,
+                adminId: product.adminId,
                 status: product.status
             });
         } else {
@@ -156,8 +151,8 @@ export default function AdminProductManager() {
                 unit: 'Units',
                 imageUrl: '',
                 category: categories[0] || null,
-                farmerId: currentUserId || '00000000-0000-0000-0000-000000000000',
-                status: 'approved'
+                adminId: currentUserId || '',
+                status: 'available'
             });
         }
         setIsModalOpen(true);
@@ -236,9 +231,9 @@ export default function AdminProductManager() {
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="p-4 text-gray-600">{product.category?.name || 'Uncategorized'}</td>
+                                    <td className="p-4 text-gray-600">{typeof product.category === 'string' ? product.category : (product.category?.name || 'Uncategorized')}</td>
                                     <td className="p-4 text-gray-600">LKR {product.price}</td>
-                                    <td className="p-4 text-gray-600">{product.quantity} {product.unit}</td>
+                                    <td className="p-4 text-gray-600">{product.stockQuantity || product.quantity} {product.unit || 'Units'}</td>
                                     <td className="p-4 text-right">
                                         <div className="flex justify-end space-x-2">
                                             <button
@@ -311,6 +306,7 @@ export default function AdminProductManager() {
                                     required
                                 />
                             </div>
+
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
                                 <select
@@ -325,6 +321,7 @@ export default function AdminProductManager() {
                                     <option value="Liters">Liters</option>
                                 </select>
                             </div>
+
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
                                 <select

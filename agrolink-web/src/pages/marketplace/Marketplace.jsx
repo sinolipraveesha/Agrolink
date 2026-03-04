@@ -19,13 +19,15 @@ export default function Marketplace() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [prodRes, catRes] = await Promise.all([
-                    axios.get('/api/products?categoryType=FARMERS_SHOP'),
-                    axios.get('/api/categories?type=FARMERS_SHOP')
-                ]);
-                setProducts(prodRes.data);
-                // Extract category names for the filter pills
-                setCategories(['All', ...catRes.data.map(c => c.name)]);
+                const prodRes = await axios.get('/api/farmer-shop-products');
+
+                const productsData = prodRes.data;
+                setProducts(productsData);
+
+                // Extract unique categories from the loaded products
+                const uniqueCategories = ['All', ...new Set(productsData.map(p => p.category).filter(Boolean))];
+                setCategories(uniqueCategories);
+
                 setLoading(false);
             } catch (error) {
                 console.error("Failed to load marketplace data", error);
@@ -38,7 +40,7 @@ export default function Marketplace() {
     const filteredProducts = products.filter(product => {
         const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             (product.description && product.description.toLowerCase().includes(searchQuery.toLowerCase()));
-        const matchesCategory = selectedCategory === 'All' || (product.category && product.category.name === selectedCategory);
+        const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
         return matchesSearch && matchesCategory;
     });
 
@@ -134,7 +136,7 @@ export default function Marketplace() {
                                     {/* Category Badge */}
                                     {product.category && (
                                         <span className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold text-[#1a7935] shadow-sm">
-                                            {product.category.name}
+                                            {product.category}
                                         </span>
                                     )}
                                 </div>
@@ -145,26 +147,13 @@ export default function Marketplace() {
                                     <p className="text-sm text-gray-500 mb-2 line-clamp-2">{product.description || 'No description available'}</p>
 
                                     {/* Seller Rating & Badge */}
-                                    {product.farmer && (
+                                    {product.admin && (
                                         <div className="flex flex-wrap items-center gap-2 mb-3">
                                             <div className="flex items-center gap-2 bg-gray-50 px-2 py-1 rounded-lg">
                                                 <span className="text-xs font-bold text-gray-600">
-                                                    By {product.farmer.fullName || product.farmer.email?.split('@')[0] || 'Farmer'}
+                                                    By {product.admin.fullName || product.admin.email?.split('@')[0] || 'Admin'}
                                                 </span>
-                                                {product.farmer.rating > 0 && (
-                                                    <div className="flex items-center gap-0.5">
-                                                        <Star className="h-3 w-3 text-yellow-400 fill-current" />
-                                                        <span className="text-xs font-bold text-gray-700">{product.farmer.rating.toFixed(1)}</span>
-                                                    </div>
-                                                )}
                                             </div>
-
-                                            {product.farmer.isTopSeller && (
-                                                <span className="bg-yellow-100 text-yellow-700 text-[10px] font-bold px-2 py-1 rounded-full border border-yellow-200 flex items-center gap-1">
-                                                    <Crown className="h-3 w-3 fill-yellow-500 text-yellow-500" />
-                                                    Top Seller
-                                                </span>
-                                            )}
                                         </div>
                                     )}
 
@@ -175,7 +164,7 @@ export default function Marketplace() {
                                         </div>
                                         <div className="text-right">
                                             <p className="text-xs text-gray-400 font-medium">Available</p>
-                                            <p className="text-sm font-semibold text-gray-700">{product.quantity} {product.unit}</p>
+                                            <p className="text-sm font-semibold text-gray-700">{product.stockQuantity || product.quantity} {product.unit || 'Units'}</p>
                                         </div>
                                     </div>
 
