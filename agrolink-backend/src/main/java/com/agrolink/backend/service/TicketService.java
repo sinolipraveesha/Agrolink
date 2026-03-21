@@ -31,6 +31,9 @@ public class TicketService {
     @Autowired
     private NotificationService notificationService;
 
+    @Autowired
+    private SentimentAnalysisService sentimentAnalysisService;
+
     public List<Ticket> getAllTickets() {
         return ticketRepository.findAll();
     }
@@ -45,9 +48,15 @@ public class TicketService {
         ticket.setUser(user);
         ticket.setSubject(subject);
         ticket.setDescription(description);
-        ticket.setPriority(priority);
-        // Default status is OPEN
-        // Default createdAt is now
+
+        // NLP: analyze subject + description to determine sentiment-based priority
+        String nlpPriority = sentimentAnalysisService.analyzePriority(subject + " " + description);
+        // Use the higher of user-supplied priority and NLP-detected priority
+        String effectivePriority = sentimentAnalysisService.isEscalation(priority, nlpPriority)
+                ? nlpPriority
+                : (priority != null ? priority : "MEDIUM");
+        ticket.setPriority(effectivePriority);
+
         Ticket savedTicket = ticketRepository.save(ticket);
 
         // Notify all admins about the new ticket
@@ -55,7 +64,7 @@ public class TicketService {
         for (Profile admin : admins) {
             notificationService.createNotification(
                     admin.getId(),
-                    "New Support Ticket",
+                    "New Support Ticket [" + effectivePriority + "]",
                     user.getFullName() + " created a support ticket: " + subject,
                     "SUPPORT_TICKET",
                     savedTicket.getId());
@@ -88,12 +97,24 @@ public class TicketService {
         message.setMessage(text);
         message.setCreatedAt(LocalDateTime.now());
 
-        // If message is from admin (not ticket owner), maybe update status?
-        // For now just keep status as is or update to IN_PROGRESS if open
         boolean isTicketOwner = sender.getId().equals(ticket.getUser().getId());
+        boolean ticketModified = false;
 
         if (ticket.getStatus() == TicketStatus.OPEN && !isTicketOwner) {
             ticket.setStatus(TicketStatus.IN_PROGRESS);
+            ticketModified = true;
+        }
+
+        // NLP: if the message is from the ticket owner, analyze it and escalate priority if needed
+        if (isTicketOwner) {
+            String nlpPriority = sentimentAnalysisService.analyzePriority(text);
+            if (sentimentAnalysisService.isEscalation(ticket.getPriority(), nlpPriority)) {
+                ticket.setPriority(nlpPriority);
+                ticketModified = true;
+            }
+        }
+
+        if (ticketModified) {
             ticketRepository.save(ticket);
         }
 

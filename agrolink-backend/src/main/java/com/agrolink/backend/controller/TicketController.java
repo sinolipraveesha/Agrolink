@@ -3,11 +3,13 @@ package com.agrolink.backend.controller;
 import com.agrolink.backend.model.Ticket;
 import com.agrolink.backend.model.TicketMessage;
 import com.agrolink.backend.model.TicketStatus;
+import com.agrolink.backend.service.SentimentAnalysisService;
 import com.agrolink.backend.service.TicketService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,9 +20,26 @@ public class TicketController {
     @Autowired
     private TicketService ticketService;
 
+    @Autowired
+    private SentimentAnalysisService sentimentAnalysisService;
+
     @GetMapping
     public List<Ticket> getAllTickets() {
         return ticketService.getAllTickets();
+    }
+
+    /**
+     * Returns all tickets sorted by priority (URGENT first) then createdAt descending.
+     * Intended for the admin dashboard sort-by-priority feature.
+     */
+    @GetMapping("/sorted")
+    public List<Ticket> getTicketsSortedByPriority() {
+        List<Ticket> tickets = ticketService.getAllTickets();
+        tickets.sort(Comparator
+                .comparingInt((Ticket t) -> sentimentAnalysisService.priorityRank(t.getPriority()))
+                .reversed()
+                .thenComparing(Comparator.comparing(Ticket::getCreatedAt).reversed()));
+        return tickets;
     }
 
     @GetMapping("/user/{userId}")

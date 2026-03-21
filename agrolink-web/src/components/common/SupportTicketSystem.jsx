@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
-import { MessageSquare, Plus, Send, X, Clock, CheckCircle, AlertCircle, Trash, Check, CheckCheck, Pencil } from 'lucide-react';
+import { MessageSquare, Plus, Send, X, Clock, CheckCircle, AlertCircle, Trash, Check, CheckCheck, Pencil, ArrowUpDown, Zap, Lightbulb, ChevronDown, ChevronUp, ThumbsUp, BookOpen } from 'lucide-react';
 
 const TicketStatusBadge = ({ status }) => {
     const colors = {
@@ -18,15 +18,40 @@ const TicketStatusBadge = ({ status }) => {
     );
 };
 
+const PriorityBadge = ({ priority }) => {
+    const config = {
+        URGENT: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300', dot: 'bg-red-500', label: 'URGENT' },
+        HIGH:   { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300', dot: 'bg-orange-500', label: 'HIGH' },
+        MEDIUM: { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-300', dot: 'bg-yellow-500', label: 'MEDIUM' },
+        LOW:    { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-300', dot: 'bg-green-500', label: 'LOW' },
+    };
+    const c = config[priority] || config.MEDIUM;
+    return (
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold border ${c.bg} ${c.text} ${c.border}`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
+            {c.label}
+        </span>
+    );
+};
+
 export default function SupportTicketSystem({ isAdmin = false }) {
     const { user } = useAuth();
     const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedTicket, setSelectedTicket] = useState(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [sortByPriority, setSortByPriority] = useState(false);
+
+    // Ticket Deflection (RAG suggestions)
+    const [deflectionSuggestions, setDeflectionSuggestions] = useState([]);
+    const [deflectionLoading, setDeflectionLoading] = useState(false);
+    const [expandedSuggestion, setExpandedSuggestion] = useState(null);
+    const [dismissedIds, setDismissedIds] = useState(new Set());
+    const [deflected, setDeflected] = useState(false);
+    const deflectionTimer = useRef(null);
 
     // Create Form State
-    const [newTicket, setNewTicket] = useState({ subject: '', description: '', priority: 'MEDIUM' });
+    const [newTicket, setNewTicket] = useState({ subject: '', description: '' });
 
     // Chat State
     const [messages, setMessages] = useState([]);
@@ -34,6 +59,76 @@ export default function SupportTicketSystem({ isAdmin = false }) {
     const [editingMessageId, setEditingMessageId] = useState(null);
     const [editingText, setEditingText] = useState('');
     const messagesContainerRef = useRef(null);
+
+    // Debounced knowledge base search
+    const searchKnowledge = (subject, description) => {
+        if (deflectionTimer.current) clearTimeout(deflectionTimer.current);
+        const query = (subject + ' ' + description).trim();
+        if (query.length < 4) {
+            setDeflectionSuggestions([]);
+            return;
+        }
+        deflectionTimer.current = setTimeout(async () => {
+            setDeflectionLoading(true);
+            try {
+                const res = await axios.get('/api/knowledge/search', { params: { q: query, limit: 3 } });
+                setDeflectionSuggestions(res.data || []);
+                setDismissedIds(new Set()); // reset dismissed on new search
+            } catch {
+                setDeflectionSuggestions([]);
+            } finally {
+                setDeflectionLoading(false);
+            }
+        }, 500);
+    };
+
+    const handleDeflect = () => {
+        setDeflected(true);
+        setTimeout(() => {
+            setShowCreateModal(false);
+            setDeflected(false);
+            setDeflectionSuggestions([]);
+            setExpandedSuggestion(null);
+            setDismissedIds(new Set());
+            setNewTicket({ subject: '', description: '' });
+        }, 1500);
+    };
+
+    const visibleSuggestions = deflectionSuggestions.filter(s => !dismissedIds.has(s.id));
+
+    // Save-to-knowledge-base (admin)
+    const [saveKbModal, setSaveKbModal] = useState(false);
+    const [saveKbForm, setSaveKbForm] = useState({ question: '', answer: '', category: 'Other', keywords: '' });
+    const [saveKbLoading, setSaveKbLoading] = useState(false);
+
+    const openSaveKb = () => {
+        setSaveKbForm({
+            question: selectedTicket?.subject || '',
+            answer: newMessage,
+            category: 'Other',
+            keywords: '',
+        });
+        setSaveKbModal(true);
+    };
+
+    const handleSaveKb = async (e) => {
+        e.preventDefault();
+        setSaveKbLoading(true);
+        try {
+            await axios.post('/api/knowledge', {
+                question: saveKbForm.question,
+                answer: saveKbForm.answer,
+                category: saveKbForm.category,
+                keywords: saveKbForm.keywords,
+                sourceTicketId: selectedTicket?.id || null,
+            });
+            setSaveKbModal(false);
+        } catch {
+            alert('Failed to save to knowledge base');
+        } finally {
+            setSaveKbLoading(false);
+        }
+    };
 
     useEffect(() => {
         fetchTickets();
@@ -97,11 +192,11 @@ export default function SupportTicketSystem({ isAdmin = false }) {
             await axios.post('/api/tickets/create', {
                 userId: user.id,
                 subject: newTicket.subject,
-                description: newTicket.description,
-                priority: newTicket.priority
+                description: newTicket.description
+                // priority is intentionally omitted — backend NLP will auto-assign it
             });
             setShowCreateModal(false);
-            setNewTicket({ subject: '', description: '', priority: 'MEDIUM' });
+            setNewTicket({ subject: '', description: '' });
             fetchTickets();
         } catch (error) {
             console.error("Failed to create ticket", error);
@@ -177,14 +272,30 @@ export default function SupportTicketSystem({ isAdmin = false }) {
                         <MessageSquare className="h-5 w-5 text-green-600" />
                         Support Tickets
                     </h2>
-                    {!isAdmin && (
-                        <button
-                            onClick={() => setShowCreateModal(true)}
-                            className="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition-colors shadow-sm"
-                        >
-                            <Plus className="h-5 w-5" />
-                        </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                        {isAdmin && (
+                            <button
+                                onClick={() => setSortByPriority(p => !p)}
+                                title={sortByPriority ? 'Sorting by priority (click to reset)' : 'Sort by priority'}
+                                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                                    sortByPriority
+                                        ? 'bg-red-50 border-red-200 text-red-600'
+                                        : 'bg-gray-100 border-gray-200 text-gray-500 hover:bg-gray-200'
+                                }`}
+                            >
+                                <ArrowUpDown className="h-3.5 w-3.5" />
+                                Priority
+                            </button>
+                        )}
+                        {!isAdmin && (
+                            <button
+                                onClick={() => setShowCreateModal(true)}
+                                className="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition-colors shadow-sm"
+                            >
+                                <Plus className="h-5 w-5" />
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-2 space-y-2 min-h-0 scroll-smooth">
@@ -193,23 +304,39 @@ export default function SupportTicketSystem({ isAdmin = false }) {
                     ) : tickets.length === 0 ? (
                         <div className="text-center py-8 text-gray-400">No tickets found.</div>
                     ) : (
-                        tickets.map(ticket => (
-                            <div
-                                key={ticket.id}
-                                onClick={() => setSelectedTicket(ticket)}
-                                className={`p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md ${selectedTicket?.id === ticket.id ? 'bg-green-50 border-green-200 ring-1 ring-green-200' : 'bg-white border-gray-100 hover:border-green-100'}`}
-                            >
-                                <div className="flex justify-between items-start mb-2">
-                                    <h3 className="font-bold text-gray-800 line-clamp-1">{ticket.subject}</h3>
-                                    {isAdmin && <TicketStatusBadge status={ticket.status} />}
+                        (() => {
+                            const priorityRank = { URGENT: 3, HIGH: 2, MEDIUM: 1, LOW: 0 };
+                            const displayTickets = sortByPriority
+                                ? [...tickets].sort((a, b) =>
+                                    (priorityRank[b.priority] ?? 1) - (priorityRank[a.priority] ?? 1)
+                                  )
+                                : tickets;
+                            return displayTickets.map(ticket => (
+                                <div
+                                    key={ticket.id}
+                                    onClick={() => setSelectedTicket(ticket)}
+                                    className={`p-4 rounded-lg border cursor-pointer transition-all hover:shadow-md ${
+                                        ticket.priority === 'URGENT' ? 'border-l-4 border-l-red-400' :
+                                        ticket.priority === 'HIGH'   ? 'border-l-4 border-l-orange-400' : ''
+                                    } ${selectedTicket?.id === ticket.id ? 'bg-green-50 border-green-200 ring-1 ring-green-200' : 'bg-white border-gray-100 hover:border-green-100'}`}
+                                >
+                                    <div className="flex justify-between items-start mb-1.5">
+                                        <h3 className="font-bold text-gray-800 line-clamp-1 flex-1 mr-2">{ticket.subject}</h3>
+                                        {isAdmin && <TicketStatusBadge status={ticket.status} />}
+                                    </div>
+                                    {isAdmin && (
+                                        <div className="mb-1.5">
+                                            <PriorityBadge priority={ticket.priority} />
+                                        </div>
+                                    )}
+                                    <p className="text-sm text-gray-500 line-clamp-2 mb-2">{ticket.description}</p>
+                                    <div className="flex justify-between items-center text-xs text-gray-400">
+                                        <span>{new Date(ticket.createdAt).toLocaleDateString()}</span>
+                                        {isAdmin && <span className="font-medium text-gray-600">{ticket.user?.fullName}</span>}
+                                    </div>
                                 </div>
-                                <p className="text-sm text-gray-500 line-clamp-2 mb-2">{ticket.description}</p>
-                                <div className="flex justify-between items-center text-xs text-gray-400">
-                                    <span>{new Date(ticket.createdAt).toLocaleDateString()}</span>
-                                    {isAdmin && <span className="font-medium text-gray-600">{ticket.user?.fullName}</span>}
-                                </div>
-                            </div>
-                        ))
+                            ));
+                        })()
                     )}
                 </div>
             </div>
@@ -221,7 +348,12 @@ export default function SupportTicketSystem({ isAdmin = false }) {
                     <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
                         <div>
                             <h3 className="font-bold text-gray-800">{selectedTicket.subject}</h3>
-                            {isAdmin && <p className="text-sm text-gray-500">Ticket ID: #{selectedTicket.id.substring(0, 8)}</p>}
+                            {isAdmin && (
+                                <div className="flex items-center gap-2 mt-0.5">
+                                    <p className="text-sm text-gray-500">#{selectedTicket.id.substring(0, 8)}</p>
+                                    <PriorityBadge priority={selectedTicket.priority} />
+                                </div>
+                            )}
                         </div>
                         <div className="flex items-center gap-2">
                             {isAdmin && <TicketStatusBadge status={selectedTicket.status} />}
@@ -376,6 +508,16 @@ export default function SupportTicketSystem({ isAdmin = false }) {
                                     placeholder="Type your message..."
                                     className="flex-1 border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
                                 />
+                                {isAdmin && newMessage.trim() && (
+                                    <button
+                                        type="button"
+                                        onClick={openSaveKb}
+                                        title="Save this reply to Knowledge Base"
+                                        className="bg-amber-100 text-amber-700 p-3 rounded-xl hover:bg-amber-200 transition-colors border border-amber-200"
+                                    >
+                                        <BookOpen className="h-5 w-5" />
+                                    </button>
+                                )}
                                 <button
                                     type="submit"
                                     disabled={!newMessage.trim()}
@@ -386,6 +528,80 @@ export default function SupportTicketSystem({ isAdmin = false }) {
                             </form>
                         )}
                     </div>
+
+                    {/* Save-to-KB Modal */}
+                    {saveKbModal && (
+                        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+                                <div className="p-5 border-b border-gray-100 bg-amber-50 flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                        <BookOpen className="h-4 w-4 text-amber-600" />
+                                        <h3 className="font-bold text-gray-800">Save to Knowledge Base</h3>
+                                    </div>
+                                    <button onClick={() => setSaveKbModal(false)} className="text-gray-400 hover:text-gray-600"><X className="h-5 w-5" /></button>
+                                </div>
+                                <div className="px-5 py-2.5 bg-amber-50 border-b border-amber-100 text-xs text-amber-700">
+                                    This reply will be saved as an admin-verified knowledge entry and used for future ticket deflection suggestions.
+                                </div>
+                                <form onSubmit={handleSaveKb} className="p-5 space-y-3">
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-600 mb-1">Question / Trigger phrase</label>
+                                        <input
+                                            required
+                                            value={saveKbForm.question}
+                                            onChange={e => setSaveKbForm(p => ({ ...p, question: e.target.value }))}
+                                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-gray-600 mb-1">Answer (authoritative)</label>
+                                        <textarea
+                                            required
+                                            rows={4}
+                                            value={saveKbForm.answer}
+                                            onChange={e => setSaveKbForm(p => ({ ...p, answer: e.target.value }))}
+                                            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 outline-none resize-none"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-600 mb-1">Category</label>
+                                            <select
+                                                value={saveKbForm.category}
+                                                onChange={e => setSaveKbForm(p => ({ ...p, category: e.target.value }))}
+                                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 outline-none"
+                                            >
+                                                {['Orders','Payments','Products','Account','Delivery','Other'].map(c => <option key={c}>{c}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-gray-600 mb-1">Keywords</label>
+                                            <input
+                                                value={saveKbForm.keywords}
+                                                onChange={e => setSaveKbForm(p => ({ ...p, keywords: e.target.value }))}
+                                                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-400/20 focus:border-amber-400 outline-none"
+                                                placeholder="space separated"
+                                            />
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-gray-400">Source ticket: <span className="font-mono">{selectedTicket?.id}</span></p>
+                                    <div className="flex gap-3 pt-1">
+                                        <button type="button" onClick={() => setSaveKbModal(false)} className="flex-1 py-2.5 border border-gray-300 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50">
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={saveKbLoading}
+                                            className="flex-1 flex items-center justify-center gap-2 bg-amber-500 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-amber-600 transition-colors disabled:opacity-60"
+                                        >
+                                            <BookOpen className="h-4 w-4" />
+                                            {saveKbLoading ? 'Saving...' : 'Save to KB'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    )}
                 </div>
             ) : (
                 <div className="hidden md:flex flex-1 h-[600px] bg-gray-50 rounded-xl border border-dashed border-gray-200 items-center justify-center flex-col text-gray-400">
@@ -400,10 +616,27 @@ export default function SupportTicketSystem({ isAdmin = false }) {
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
                         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                             <h3 className="font-bold text-gray-800 text-lg">Create Support Ticket</h3>
-                            <button onClick={() => setShowCreateModal(false)} className="text-gray-400 hover:text-gray-600">
+                            <button onClick={() => {
+                                setShowCreateModal(false);
+                                setDeflectionSuggestions([]);
+                                setExpandedSuggestion(null);
+                                setDismissedIds(new Set());
+                                setNewTicket({ subject: '', description: '' });
+                            }} className="text-gray-400 hover:text-gray-600">
                                 <X className="h-5 w-5" />
                             </button>
                         </div>
+
+                        {/* Deflected success state */}
+                        {deflected ? (
+                            <div className="p-10 flex flex-col items-center gap-3 text-center">
+                                <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center">
+                                    <ThumbsUp className="h-7 w-7 text-green-600" />
+                                </div>
+                                <p className="font-bold text-gray-800">Great! Glad that helped.</p>
+                                <p className="text-sm text-gray-500">No ticket was created.</p>
+                            </div>
+                        ) : (
                         <form onSubmit={handleCreateTicket} className="p-6 space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Subject</label>
@@ -411,25 +644,19 @@ export default function SupportTicketSystem({ isAdmin = false }) {
                                     type="text"
                                     required
                                     value={newTicket.subject}
-                                    onChange={e => setNewTicket({ ...newTicket, subject: e.target.value })}
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        setNewTicket(prev => ({ ...prev, subject: val }));
+                                        searchKnowledge(val, newTicket.description);
+                                    }}
                                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none"
                                     placeholder="Brief summary of issue"
                                 />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-                                    <select
-                                        value={newTicket.priority}
-                                        onChange={e => setNewTicket({ ...newTicket, priority: e.target.value })}
-                                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none bg-white"
-                                    >
-                                        <option value="LOW">Low</option>
-                                        <option value="MEDIUM">Medium</option>
-                                        <option value="HIGH">High</option>
-                                    </select>
-                                </div>
+                            <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2.5 text-xs text-blue-700">
+                                <Zap className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-blue-500" />
+                                <span>Priority is assigned automatically based on your message content using sentiment analysis.</span>
                             </div>
 
                             <div>
@@ -438,21 +665,81 @@ export default function SupportTicketSystem({ isAdmin = false }) {
                                     required
                                     rows={4}
                                     value={newTicket.description}
-                                    onChange={e => setNewTicket({ ...newTicket, description: e.target.value })}
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        setNewTicket(prev => ({ ...prev, description: val }));
+                                        searchKnowledge(newTicket.subject, val);
+                                    }}
                                     className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 outline-none resize-none"
                                     placeholder="Describe your issue in detail..."
                                 />
                             </div>
+
+                            {/* RAG Suggestion Panel */}
+                            {(deflectionLoading || visibleSuggestions.length > 0) && (
+                                <div className="border border-amber-200 rounded-xl bg-amber-50 overflow-hidden">
+                                    <div className="flex items-center gap-2 px-3 py-2 border-b border-amber-200 bg-amber-100">
+                                        <Lightbulb className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" />
+                                        <span className="text-xs font-semibold text-amber-800">
+                                            {deflectionLoading ? 'Searching for answers...' : `${visibleSuggestions.length} suggestion${visibleSuggestions.length !== 1 ? 's' : ''} found`}
+                                        </span>
+                                    </div>
+                                    {deflectionLoading && (
+                                        <div className="px-3 py-3 flex gap-1.5">
+                                            {[0,1,2].map(i => (
+                                                <div key={i} className="h-2 bg-amber-200 rounded animate-pulse flex-1" style={{animationDelay: `${i * 150}ms`}} />
+                                            ))}
+                                        </div>
+                                    )}
+                                    {visibleSuggestions.map(s => (
+                                        <div key={s.id} className="border-t border-amber-200 first:border-t-0">
+                                            <button
+                                                type="button"
+                                                onClick={() => setExpandedSuggestion(expandedSuggestion === s.id ? null : s.id)}
+                                                className="w-full text-left px-3 py-2.5 flex items-start gap-2 hover:bg-amber-100 transition-colors"
+                                            >
+                                                <span className="flex-1 text-xs font-medium text-gray-800 leading-relaxed">{s.question}</span>
+                                                <span className="flex-shrink-0 mt-0.5 text-amber-600">
+                                                    {expandedSuggestion === s.id ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                                                </span>
+                                            </button>
+                                            {expandedSuggestion === s.id && (
+                                                <div className="px-3 pb-3 space-y-2">
+                                                    <p className="text-xs text-gray-600 leading-relaxed bg-white rounded-lg p-2.5 border border-amber-100">{s.answer}</p>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleDeflect}
+                                                            className="flex-1 flex items-center justify-center gap-1.5 bg-green-600 text-white text-xs font-semibold py-1.5 rounded-lg hover:bg-green-700 transition-colors"
+                                                        >
+                                                            <ThumbsUp className="h-3 w-3" />
+                                                            Yes, this helped!
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setDismissedIds(prev => new Set([...prev, s.id]))}
+                                                            className="px-3 text-xs text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                                                        >
+                                                            Dismiss
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
 
                             <div className="pt-2">
                                 <button
                                     type="submit"
                                     className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20"
                                 >
-                                    Submit Ticket
+                                    {visibleSuggestions.length > 0 ? 'Submit Ticket Anyway' : 'Submit Ticket'}
                                 </button>
                             </div>
                         </form>
+                        )}
                     </div>
                 </div>
             )}
