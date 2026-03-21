@@ -29,6 +29,12 @@ public class TicketMessage {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "status", nullable = false)
+    private String status = "SENT";
+
+    @Column(name = "is_edited")
+    private boolean isEdited = false;
+
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {
@@ -74,5 +80,21 @@ public class TicketMessage {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public boolean isEdited() {
+        return isEdited;
+    }
+
+    public void setEdited(boolean edited) {
+        isEdited = edited;
     }
 }

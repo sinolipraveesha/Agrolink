@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { X } from 'lucide-react';
 
-const ReviewModal = ({ isOpen, onClose, revieweeName, orderId, revieweeId, reviewerId, onReviewSuccess }) => {
+const ReviewModal = ({ isOpen, onClose, revieweeName, orderId, revieweeId, productId, reviewerId, onReviewSuccess }) => {
     const [rating, setRating] = useState(0);
     const [comment, setComment] = useState('');
     const [loading, setLoading] = useState(false);
@@ -10,9 +10,13 @@ const ReviewModal = ({ isOpen, onClose, revieweeName, orderId, revieweeId, revie
     const [isUpdate, setIsUpdate] = useState(false);
 
     React.useEffect(() => {
-        if (isOpen && orderId && reviewerId && revieweeId) {
+        if (isOpen && orderId && reviewerId && (revieweeId || productId)) {
             setLoading(true);
-            axios.get(`/api/reviews?orderId=${orderId}&reviewerId=${reviewerId}&revieweeId=${revieweeId}`)
+            const params = new URLSearchParams({ orderId, reviewerId });
+            if (revieweeId) params.append('revieweeId', revieweeId);
+            if (productId) params.append('productId', productId);
+
+            axios.get(`/api/reviews?${params.toString()}`)
                 .then(res => {
                     if (res.data) {
                         setRating(res.data.rating);
@@ -32,7 +36,7 @@ const ReviewModal = ({ isOpen, onClose, revieweeName, orderId, revieweeId, revie
                 })
                 .finally(() => setLoading(false));
         }
-    }, [isOpen, orderId, reviewerId, revieweeId]);
+    }, [isOpen, orderId, reviewerId, revieweeId, productId]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -48,10 +52,11 @@ const ReviewModal = ({ isOpen, onClose, revieweeName, orderId, revieweeId, revie
             const payload = {
                 orderId,
                 reviewerId,
-                revieweeId,
                 rating,
                 comment
             };
+            if (revieweeId) payload.revieweeId = revieweeId;
+            if (productId) payload.productId = productId;
 
             if (isUpdate) {
                 await axios.put('/api/reviews', payload);

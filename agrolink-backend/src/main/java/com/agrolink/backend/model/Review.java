@@ -20,8 +20,12 @@ public class Review {
     private Profile reviewer;
 
     @ManyToOne
-    @JoinColumn(name = "reviewee_id", nullable = false)
+    @JoinColumn(name = "reviewee_id", nullable = true)
     private Profile reviewee;
+
+    @ManyToOne
+    @JoinColumn(name = "product_id", nullable = true)
+    private Product product;
 
     @ManyToOne
     @JoinColumn(name = "order_id", nullable = false)
@@ -97,5 +101,13 @@ public class Review {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Product getProduct() {
+        return product;
+    }
+
+    public void setProduct(Product product) {
+        this.product = product;
     }
 }

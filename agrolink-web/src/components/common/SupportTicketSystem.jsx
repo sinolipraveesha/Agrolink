@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
-import { MessageSquare, Plus, Send, X, Clock, CheckCircle, AlertCircle, Trash } from 'lucide-react';
+import { MessageSquare, Plus, Send, X, Clock, CheckCircle, AlertCircle, Trash, Check, CheckCheck, Pencil } from 'lucide-react';
 
 const TicketStatusBadge = ({ status }) => {
     const colors = {
@@ -31,7 +31,9 @@ export default function SupportTicketSystem({ isAdmin = false }) {
     // Chat State
     const [messages, setMessages] = useState([]);
     const [newMessage, setNewMessage] = useState('');
-    const messagesEndRef = useRef(null);
+    const [editingMessageId, setEditingMessageId] = useState(null);
+    const [editingText, setEditingText] = useState('');
+    const messagesContainerRef = useRef(null);
 
     useEffect(() => {
         fetchTickets();
@@ -53,7 +55,9 @@ export default function SupportTicketSystem({ isAdmin = false }) {
     }, [messages]);
 
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        if (messagesContainerRef.current) {
+            messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+        }
     };
 
     const fetchTickets = async () => {
@@ -75,7 +79,13 @@ export default function SupportTicketSystem({ isAdmin = false }) {
     const fetchMessages = async (ticketId) => {
         try {
             const res = await axios.get(`/api/tickets/${ticketId}/messages`);
-            setMessages(res.data);
+            const fetchedMessages = res.data;
+            setMessages(fetchedMessages);
+
+            const hasUnread = fetchedMessages.some(m => m.sender?.id !== user.id && m.status !== 'READ');
+            if (hasUnread) {
+                await axios.put(`/api/tickets/${ticketId}/messages/read`, null, { params: { userId: user.id } });
+            }
         } catch (error) {
             console.error("Failed to fetch messages", error);
         }
@@ -121,26 +131,48 @@ export default function SupportTicketSystem({ isAdmin = false }) {
             fetchMessages(selectedTicket.id);
         } catch (error) {
             console.error("Failed to delete message", error);
-            alert("Failed to delete message. You can only delete your own messages.");
+            alert("Failed to delete message. Admins may have already replied.");
         }
     };
 
-    const resolveTicket = async () => {
-        if (!confirm("Are you sure you want to mark this ticket as RESOLVED?")) return;
+    const submitEdit = async (messageId) => {
+        if (!editingText.trim()) return;
         try {
-            await axios.put(`/api/tickets/${selectedTicket.id}/status?status=RESOLVED`);
-            fetchTickets();
-            setSelectedTicket(prev => ({ ...prev, status: 'RESOLVED' }));
+            await axios.put(`/api/tickets/messages/${messageId}`, {
+                userId: user.id,
+                newText: editingText
+            });
+            setEditingMessageId(null);
+            fetchMessages(selectedTicket.id);
         } catch (error) {
-            console.error("Failed to resolve ticket", error);
+            console.error("Failed to edit message", error);
+            alert("Failed to edit message. Admins may have already replied.");
         }
-    }
+    };
+
+    const canEditDelete = (msg, index) => {
+        if (msg.sender?.id !== user.id) return false;
+        const subsequentMessages = messages.slice(index + 1);
+        return !subsequentMessages.some(m => m.sender?.id !== user.id);
+    };
+
+    const handleDeleteTicket = async (ticketId) => {
+        if (!confirm("Are you sure you want to completely delete this ticket? This cannot be undone.")) return;
+        try {
+            await axios.delete(`/api/tickets/${ticketId}`, { params: { requesterId: user.id } });
+            if (selectedTicket?.id === ticketId) setSelectedTicket(null);
+            fetchTickets();
+        } catch (error) {
+            console.error("Failed to delete ticket", error);
+            alert("Failed to delete ticket.");
+        }
+    };
 
     return (
-        <div className="h-[calc(100vh-100px)] flex gap-6">
+        <div className="flex flex-col md:flex-row gap-6 w-full relative">
             {/* Ticket List */}
-            <div className={`w-full ${selectedTicket ? 'hidden md:block md:w-1/3' : ''} bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col`}>
-                <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-xl">
+            <div className={`w-full ${selectedTicket ? 'hidden md:flex md:w-1/3' : 'flex'} bg-white rounded-xl shadow-sm border border-gray-200 flex-col h-[600px] overflow-hidden`}>
+                <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-xl shrink-0">
                     <h2 className="font-bold text-gray-800 flex items-center gap-2">
                         <MessageSquare className="h-5 w-5 text-green-600" />
                         Support Tickets
@@ -155,7 +187,7 @@ export default function SupportTicketSystem({ isAdmin = false }) {
                     )}
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-2 space-y-2">
+                <div className="flex-1 overflow-y-auto p-2 space-y-2 min-h-0 scroll-smooth">
                     {loading ? (
                         <div className="text-center py-8 text-gray-400">Loading...</div>
                     ) : tickets.length === 0 ? (
@@ -169,7 +201,7 @@ export default function SupportTicketSystem({ isAdmin = false }) {
                             >
                                 <div className="flex justify-between items-start mb-2">
                                     <h3 className="font-bold text-gray-800 line-clamp-1">{ticket.subject}</h3>
-                                    <TicketStatusBadge status={ticket.status} />
+                                    {isAdmin && <TicketStatusBadge status={ticket.status} />}
                                 </div>
                                 <p className="text-sm text-gray-500 line-clamp-2 mb-2">{ticket.description}</p>
                                 <div className="flex justify-between items-center text-xs text-gray-400">
@@ -184,85 +216,153 @@ export default function SupportTicketSystem({ isAdmin = false }) {
 
             {/* Chat Area */}
             {selectedTicket ? (
-                <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden">
+                <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col h-[600px] overflow-hidden">
                     {/* Chat Header */}
-                    <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                    <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
                         <div>
                             <h3 className="font-bold text-gray-800">{selectedTicket.subject}</h3>
-                            <p className="text-sm text-gray-500">Ticket ID: #{selectedTicket.id.substring(0, 8)}</p>
+                            {isAdmin && <p className="text-sm text-gray-500">Ticket ID: #{selectedTicket.id.substring(0, 8)}</p>}
                         </div>
                         <div className="flex items-center gap-2">
-                            <TicketStatusBadge status={selectedTicket.status} />
+                            {isAdmin && <TicketStatusBadge status={selectedTicket.status} />}
                             <button onClick={() => setSelectedTicket(null)} className="md:hidden p-2 text-gray-400 hover:text-gray-600">
                                 <X className="h-5 w-5" />
                             </button>
                             {/* Admin Actions */}
-                            {isAdmin && selectedTicket.status !== 'RESOLVED' && selectedTicket.status !== 'CLOSED' && (
-                                <button onPress={resolveTicket} className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full border border-green-200 hover:bg-green-200">
-                                    Mark Resolved
+                            {isAdmin && (
+                                <select
+                                    className="text-xs bg-gray-50 border border-gray-200 text-gray-700 rounded-md px-2 py-1 outline-none focus:border-green-500 cursor-pointer"
+                                    value={selectedTicket.status}
+                                    onChange={async (e) => {
+                                        const newStatus = e.target.value;
+                                        if (!confirm(`Mark ticket as ${newStatus.replace('_', ' ')}?`)) return;
+                                        try {
+                                            await axios.put(`/api/tickets/${selectedTicket.id}/status?status=${newStatus}&requesterId=${user.id}`);
+                                            fetchTickets();
+                                            setSelectedTicket(prev => ({ ...prev, status: newStatus }));
+                                        } catch (err) {
+                                            alert("Failed to update status. Only admins can update the status.");
+                                        }
+                                    }}
+                                >
+                                    <option value="OPEN">OPEN</option>
+                                    <option value="IN_PROGRESS">IN PROGRESS</option>
+                                    <option value="RESOLVED">RESOLVED</option>
+                                    <option value="CLOSED">CLOSED</option>
+                                </select>
+                            )}
+                            {(isAdmin || selectedTicket.user?.id === user.id) && (
+                                <button onClick={() => handleDeleteTicket(selectedTicket.id)} className="text-gray-400 hover:text-red-500 p-1.5 transition-colors" title="Delete Ticket">
+                                    <Trash className="h-4 w-4" />
                                 </button>
                             )}
                         </div>
                     </div>
 
                     {/* Messages */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/30">
+                    <div 
+                        ref={messagesContainerRef}
+                        className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#efeae2] scroll-smooth"
+                    >
                         {/* Initial Description as first message */}
-                        <div className="flex justify-start">
-                            <div className="bg-white border border-gray-200 rounded-2xl rounded-tl-none py-3 px-4 max-w-[80%] shadow-sm">
-                                <p className="text-xs font-bold text-gray-500 mb-1">{selectedTicket.user?.fullName} (User)</p>
-                                <p className="text-gray-800">{selectedTicket.description}</p>
-                                <p className="text-[10px] text-gray-400 mt-1 text-right">{new Date(selectedTicket.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                        <div className={`flex ${selectedTicket.user?.id === user.id ? 'justify-end' : 'justify-start'} group w-full`}>
+                            <div className={`rounded-lg py-1.5 px-3 max-w-[85%] sm:max-w-[75%] shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] relative ${
+                                selectedTicket.user?.id === user.id 
+                                ? 'bg-[#d9fdd3] text-[#111b21] rounded-tr-none' 
+                                : 'bg-white text-[#111b21] rounded-tl-none'
+                            }`}>
+                                {selectedTicket.user?.id !== user.id && (
+                                    <p className="text-[12px] font-medium text-[#1f7eb6] mb-0.5">{selectedTicket.user?.fullName || 'User'}</p>
+                                )}
+                                <p className="text-[14px] leading-relaxed whitespace-pre-wrap break-words">{selectedTicket.description}</p>
+                                <div className="flex justify-end items-center gap-1 mt-1 -mb-0.5">
+                                    <p className="text-[11px] text-[#667781]">
+                                        {new Date(selectedTicket.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                </div>
                             </div>
                         </div>
 
-                        {messages.map((msg) => {
+                        {messages.map((msg, index) => {
                             const isMe = msg.sender?.id === user.id;
-                            const isSupport = !isMe && (isAdmin ? msg.sender?.id !== selectedTicket.user?.id : true); // Logic isn't perfect for generic chat, usually check role
-
-                            // Debug logging
-                            console.log('Message:', msg.message, 'Sender ID:', msg.sender?.id, 'User ID:', user.id, 'isMe:', isMe);
-
-                            // Better logic:
-                            // If I am user, messages from me are right. Messages from others (admin) are left.
-                            // If I am admin, messages from me are right. Messages from user are left.
 
                             return (
-                                <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group`}>
-                                    <div className={`rounded-2xl py-3 px-4 max-w-[80%] shadow-sm relative ${isMe
-                                        ? 'bg-green-600 text-white rounded-tr-none'
-                                        : 'bg-white border border-gray-200 rounded-tl-none'
-                                        }`}>
+                                <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group w-full`}>
+                                    <div className={`rounded-lg py-1.5 px-3 max-w-[85%] sm:max-w-[75%] shadow-[0_1px_0.5px_rgba(0,0,0,0.13)] relative ${
+                                        isMe
+                                        ? 'bg-[#d9fdd3] text-[#111b21] rounded-tr-none'
+                                        : 'bg-white text-[#111b21] rounded-tl-none'
+                                    }`}>
                                         {!isMe && (
-                                            <p className="text-xs font-bold text-gray-500 mb-1">
+                                            <p className="text-[12px] font-medium text-[#1f7eb6] mb-0.5">
                                                 {msg.sender?.fullName || 'Support'}
                                             </p>
                                         )}
-                                        <p className={`${isMe ? 'text-white' : 'text-gray-800'}`}>{msg.message}</p>
-                                        <div className="flex items-center justify-between gap-2">
-                                            <p className={`text-[10px] mt-1 ${isMe ? 'text-green-200' : 'text-gray-400'}`}>
-                                                {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        {editingMessageId === msg.id ? (
+                                            <div className="flex flex-col gap-2 min-w-[200px] mt-1 mb-1">
+                                                <textarea
+                                                    value={editingText}
+                                                    onChange={(e) => setEditingText(e.target.value)}
+                                                    className="w-full text-sm p-2 rounded border border-green-300 focus:outline-none focus:border-green-500 resize-none bg-white font-normal"
+                                                    rows={2}
+                                                    autoFocus
+                                                />
+                                                <div className="flex justify-end gap-2">
+                                                    <button onClick={() => setEditingMessageId(null)} className="text-[11px] text-gray-500 hover:text-gray-700">Cancel</button>
+                                                    <button onClick={() => submitEdit(msg.id)} className="text-[11px] text-green-600 font-bold hover:text-green-700">Save</button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <p className="text-[14px] leading-relaxed whitespace-pre-wrap break-words">
+                                                {msg.message}
+                                                {msg.edited && <span className="text-[11px] text-[#667781] italic ml-1">(edited)</span>}
                                             </p>
-                                            {/* Delete button - only show for own messages */}
-                                            {isMe && (
-                                                <button
-                                                    onClick={() => handleDeleteMessage(msg.id)}
-                                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-green-700 rounded"
-                                                    title="Delete message"
-                                                >
-                                                    <Trash className="h-3 w-3" />
-                                                </button>
+                                        )}
+                                        <div className="flex items-center justify-end gap-1.5 mt-1 -mb-0.5">
+                                            {/* Edit/Delete buttons - only show if eligible */}
+                                            {canEditDelete(msg, index) && editingMessageId !== msg.id && (
+                                                <>
+                                                    <button
+                                                        onClick={() => { setEditingMessageId(msg.id); setEditingText(msg.message); }}
+                                                        className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-blue-500 flex-shrink-0"
+                                                        title="Edit message"
+                                                    >
+                                                        <Pencil className="h-3 w-3" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteMessage(msg.id)}
+                                                        className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500 flex-shrink-0"
+                                                        title="Delete message"
+                                                    >
+                                                        <Trash className="h-3 w-3" />
+                                                    </button>
+                                                </>
                                             )}
+                                            <div className="flex items-center gap-1">
+                                                <p className="text-[11px] text-[#667781] flex-shrink-0">
+                                                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </p>
+                                                {isMe && (
+                                                    <span className="flex-shrink-0 text-[#667781] ml-0.5 mt-0.5">
+                                                        {msg.status === 'READ' ? (
+                                                            <CheckCheck className="h-3.5 w-3.5 text-blue-500" />
+                                                        ) : msg.status === 'DELIVERED' ? (
+                                                            <CheckCheck className="h-3.5 w-3.5" />
+                                                        ) : (
+                                                            <Check className="h-3.5 w-3.5" />
+                                                        )}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             );
                         })}
-                        <div ref={messagesEndRef} />
                     </div>
 
                     {/* Input */}
-                    <div className="p-4 border-t border-gray-100 bg-white">
+                    <div className="p-4 border-t border-gray-100 bg-white shrink-0">
                         {selectedTicket.status === 'CLOSED' ? (
                             <div className="text-center text-gray-500 bg-gray-100 p-3 rounded-lg">
                                 This ticket is closed. You cannot reply.
@@ -288,7 +388,7 @@ export default function SupportTicketSystem({ isAdmin = false }) {
                     </div>
                 </div>
             ) : (
-                <div className="hidden md:flex flex-1 bg-gray-50 rounded-xl border border-dashed border-gray-200 items-center justify-center flex-col text-gray-400">
+                <div className="hidden md:flex flex-1 h-[600px] bg-gray-50 rounded-xl border border-dashed border-gray-200 items-center justify-center flex-col text-gray-400">
                     <MessageSquare className="h-16 w-16 mb-4 opacity-20" />
                     <p>Select a ticket to view conversation</p>
                 </div>

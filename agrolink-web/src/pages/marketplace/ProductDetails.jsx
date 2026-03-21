@@ -13,6 +13,8 @@ export default function ProductDetails() {
     const [loading, setLoading] = useState(true);
     const [quantity, setQuantity] = useState(1);
     const [activeTab, setActiveTab] = useState('description');
+    const [reviews, setReviews] = useState([]);
+    const [loadingReviews, setLoadingReviews] = useState(false);
 
     const { addToCart } = useCart();
 
@@ -40,6 +42,16 @@ export default function ProductDetails() {
         };
         fetchProduct();
     }, [id]);
+
+    useEffect(() => {
+        if (product && activeTab === 'reviews') {
+            setLoadingReviews(true);
+            axios.get(`/api/reviews/product/${product.id}`)
+                .then(res => setReviews(res.data))
+                .catch(err => console.error("Failed to load reviews", err))
+                .finally(() => setLoadingReviews(false));
+        }
+    }, [product, activeTab]);
 
     if (loading) return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -106,10 +118,10 @@ export default function ProductDetails() {
                                         {[...Array(5)].map((_, i) => (
                                             <Star
                                                 key={i}
-                                                className={`h-4 w-4 ${i < Math.round(product.farmer?.rating || 0) ? 'fill-yellow-400 text-yellow-400' : 'fill-gray-200 text-gray-200'}`}
+                                                className={`h-4 w-4 ${i < Math.round(product.rating || 0) ? 'fill-yellow-400 text-yellow-400' : 'fill-gray-200 text-gray-200'}`}
                                             />
                                         ))}
-                                        <span className="text-gray-400 ml-2">({product.farmer?.rating ? product.farmer.rating : 'New Seller'})</span>
+                                        <span className="text-gray-400 ml-2">({product.rating ? product.rating : 'No reviews'})</span>
                                     </div>
                                     <span className="text-gray-300">|</span>
                                     <span className="text-gray-500 flex items-center">
@@ -220,6 +232,13 @@ export default function ProductDetails() {
                             >
                                 Farmer Details
                             </button>
+                            <button
+                                onClick={() => setActiveTab('reviews')}
+                                className={`pb-4 font-bold text-sm uppercase tracking-wide transition-colors border-b-2 ${activeTab === 'reviews' ? 'border-[#1a7935] text-[#1a7935]' : 'border-transparent text-gray-400 hover:text-gray-600'
+                                    }`}
+                            >
+                                Reviews ({reviews.length > 0 ? reviews.length : (product.rating ? '1+' : '0')})
+                            </button>
                         </div>
 
                         <div className="min-h-[100px]">
@@ -246,6 +265,48 @@ export default function ProductDetails() {
                                             Verified Seller
                                         </div>
                                     </div>
+                                </div>
+                            )}
+
+                            {activeTab === 'reviews' && (
+                                <div className="space-y-6 animate-fade-in">
+                                    {loadingReviews ? (
+                                        <div className="flex justify-center py-8">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#1a7935] border-t-transparent"></div>
+                                        </div>
+                                    ) : reviews.length === 0 ? (
+                                        <div className="text-center py-8 bg-white rounded-xl border border-gray-100">
+                                            <Star className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                                            <p className="text-gray-500 font-medium">No reviews yet for this product.</p>
+                                            <p className="text-sm text-gray-400 mt-1">Purchase to be the first to review!</p>
+                                        </div>
+                                    ) : (
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                            {reviews.map(review => (
+                                                <div key={review.id} className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm relative">
+                                                    <div className="flex items-center justify-between mb-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-8 h-8 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-bold text-sm">
+                                                                {review.reviewer?.fullName?.charAt(0) || 'U'}
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-bold text-sm text-gray-800">{review.reviewer?.fullName || 'Anonymous'}</p>
+                                                                <p className="text-xs text-gray-400">{new Date(review.createdAt).toLocaleDateString()}</p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center text-yellow-500">
+                                                            {[...Array(5)].map((_, i) => (
+                                                                <Star key={i} className={`h-3 w-3 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'fill-gray-200 text-gray-200'}`} />
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-gray-700 text-sm leading-relaxed">
+                                                        {review.comment || <span className="text-gray-400 italic">No written feedback provided.</span>}
+                                                    </p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

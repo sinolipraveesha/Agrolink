@@ -54,10 +54,11 @@ const MyOrders = () => {
 
     const [reviewConfig, setReviewConfig] = useState(null);
 
-    const openReviewModal = (orderId, revieweeId, name) => {
+    const openReviewModal = (orderId, revieweeId, productId, name) => {
         setReviewConfig({
             orderId,
             revieweeId,
+            productId,
             revieweeName: name,
             reviewerId: user.id
         });
@@ -225,7 +226,7 @@ const MyOrders = () => {
                                     <div className="flex gap-2">
                                         {selectedOrder.status === 'delivered' && (
                                             <button
-                                                onClick={() => openReviewModal(selectedOrder.id, selectedOrder.driver?.id, selectedOrder.driver?.fullName || 'Driver')}
+                                                onClick={() => openReviewModal(selectedOrder.id, selectedOrder.driver?.id, null, selectedOrder.driver?.fullName || 'Driver')}
                                                 className="bg-white text-blue-600 border border-blue-200 px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-50 shadow-sm transition-colors"
                                             >
                                                 Review Driver
@@ -270,7 +271,7 @@ const MyOrders = () => {
                                         </div>
                                     </div>
                                     <button
-                                        onClick={() => openReviewModal(selectedOrder.id, selectedOrder.farmer.id, selectedOrder.farmer.fullName || 'Farmer')}
+                                        onClick={() => openReviewModal(selectedOrder.id, selectedOrder.farmer?.id, null, selectedOrder.farmer?.fullName || 'Farmer')}
                                         className="bg-white text-green-600 border border-green-200 px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-50 shadow-sm transition-colors"
                                     >
                                         Review Seller
@@ -293,6 +294,14 @@ const MyOrders = () => {
                                             <div className="flex-1">
                                                 <h4 className="font-bold text-gray-800">{item.product?.name || item.customItemName || 'Custom Item'}</h4>
                                                 <p className="text-sm text-gray-500">Unit Price: Rs. {item.priceAtTime}</p>
+                                                {selectedOrder.status === 'delivered' && item.product && (
+                                                    <button
+                                                        onClick={() => openReviewModal(selectedOrder.id, null, item.product.id, item.product.name)}
+                                                        className="mt-2 bg-yellow-50 text-yellow-700 border border-yellow-200 px-3 py-1 rounded-lg text-xs font-bold hover:bg-yellow-100 transition-colors flex items-center gap-1 w-fit"
+                                                    >
+                                                        Review Product
+                                                    </button>
+                                                )}
                                             </div>
                                             <div className="text-right">
                                                 <p className="font-bold text-lg text-[#1a7935]">x{item.quantity}</p>
@@ -332,6 +341,7 @@ const MyOrders = () => {
                     revieweeName={reviewConfig.revieweeName}
                     orderId={reviewConfig.orderId}
                     revieweeId={reviewConfig.revieweeId}
+                    productId={reviewConfig.productId}
                     reviewerId={reviewConfig.reviewerId}
                     onReviewSuccess={handleReviewSuccess}
                 />

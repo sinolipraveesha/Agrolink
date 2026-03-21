@@ -64,8 +64,16 @@ public class TicketService {
         return savedTicket;
     }
 
-    public Ticket getTicketById(UUID id) {
-        return ticketRepository.findById(id).orElse(null);
+    public Ticket getTicketById(UUID id, UUID requesterId) {
+        Ticket ticket = ticketRepository.findById(id).orElse(null);
+        if (ticket == null) return null;
+        if (requesterId != null) {
+            Profile requester = profileRepository.findById(requesterId).orElse(null);
+            if (requester != null && requester.getRole() != UserRole.admin && !ticket.getUser().getId().equals(requesterId)) {
+                return null;
+            }
+        }
+        return ticket;
     }
 
     @Transactional
@@ -117,7 +125,11 @@ public class TicketService {
         return savedMessage;
     }
 
-    public Ticket updateStatus(UUID ticketId, TicketStatus newStatus) {
+    public Ticket updateStatus(UUID ticketId, TicketStatus newStatus, UUID requesterId) {
+        Profile requester = profileRepository.findById(requesterId).orElse(null);
+        if (requester == null || requester.getRole() != UserRole.admin) {
+            return null; // Not authorized
+        }
         Ticket ticket = ticketRepository.findById(ticketId).orElseThrow(() -> new RuntimeException("Ticket not found"));
         ticket.setStatus(newStatus);
         return ticketRepository.save(ticket);
@@ -125,6 +137,38 @@ public class TicketService {
 
     public List<TicketMessage> getMessages(UUID ticketId) {
         return ticketMessageRepository.findByTicketIdOrderByCreatedAtAsc(ticketId);
+    }
+
+    @Transactional
+    public void markMessagesAsRead(UUID ticketId, UUID viewerId) {
+        List<TicketMessage> messages = ticketMessageRepository.findByTicketIdOrderByCreatedAtAsc(ticketId);
+        for (TicketMessage msg : messages) {
+            if (!msg.getSender().getId().equals(viewerId) && !"READ".equals(msg.getStatus())) {
+                msg.setStatus("READ");
+                ticketMessageRepository.save(msg);
+            }
+        }
+    }
+
+    @Transactional
+    public TicketMessage editMessage(UUID messageId, UUID userId, String newText) {
+        TicketMessage message = ticketMessageRepository.findById(messageId)
+                .orElseThrow(() -> new RuntimeException("Message not found"));
+
+        if (!message.getSender().getId().equals(userId)) {
+            throw new RuntimeException("Not authorized");
+        }
+
+        List<TicketMessage> ticketMessages = ticketMessageRepository.findByTicketIdOrderByCreatedAtAsc(message.getTicket().getId());
+        for (TicketMessage m : ticketMessages) {
+            if (m.getCreatedAt().isAfter(message.getCreatedAt()) && !m.getSender().getId().equals(userId)) {
+                throw new RuntimeException("Cannot edit after reply");
+            }
+        }
+
+        message.setMessage(newText);
+        message.setEdited(true);
+        return ticketMessageRepository.save(message);
     }
 
     @Transactional
@@ -139,7 +183,35 @@ public class TicketService {
             return false; // Not authorized
         }
 
+        List<TicketMessage> ticketMessages = ticketMessageRepository.findByTicketIdOrderByCreatedAtAsc(message.getTicket().getId());
+        for (TicketMessage m : ticketMessages) {
+            if (m.getCreatedAt().isAfter(message.getCreatedAt()) && !m.getSender().getId().equals(userId)) {
+                return false; // Cannot delete after a reply
+            }
+        }
+
         ticketMessageRepository.delete(message);
+        return true;
+    }
+
+    @Transactional
+    public boolean deleteTicket(UUID ticketId, UUID requesterId) {
+        Ticket ticket = ticketRepository.findById(ticketId).orElse(null);
+        if (ticket == null) return false;
+
+        Profile requester = profileRepository.findById(requesterId).orElse(null);
+        if (requester == null) return false;
+
+        boolean isAdmin = requester.getRole() == UserRole.admin;
+        boolean isOwner = ticket.getUser().getId().equals(requesterId);
+
+        if (!isAdmin && !isOwner) {
+            return false;
+        }
+
+        List<TicketMessage> messages = ticketMessageRepository.findByTicketIdOrderByCreatedAtAsc(ticketId);
+        ticketMessageRepository.deleteAll(messages);
+        ticketRepository.delete(ticket);
         return true;
     }
 }
