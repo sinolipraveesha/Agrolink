@@ -50,10 +50,12 @@ public class AgrolinkBackendApplication {
 					java.sql.Statement stmt = conn.createStatement()) {
 				System.out.println("Applying database fix: Altering order_items to allow null product_id");
 				stmt.execute("ALTER TABLE order_items ALTER COLUMN product_id DROP NOT NULL");
-				System.out.println("Database fix applied successfully!");
+				System.out.println("Applying database fix: Altering driver_locations id to bigint");
+				stmt.execute("ALTER TABLE driver_locations ALTER COLUMN id TYPE bigint USING id::bigint");
+				System.out.println("Database fixes applied successfully!");
 			} catch (Exception e) {
 				System.out
-						.println("Database fix failed (might already be nullable or table missing): " + e.getMessage());
+						.println("Database fix failed: " + e.getMessage());
 			}
 		};
 	}
