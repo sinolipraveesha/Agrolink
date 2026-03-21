@@ -28,55 +28,41 @@ export default function Chatbot({ isOpen, onClose }) {
         setIsLoading(true);
 
         try {
-            const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-            if (!apiKey) {
-                throw new Error('Gemini API key is missing. Please check your .env file.');
-            }
+            // Prepare conversation history for LM Studio (OpenAI format)
+            const openaiMessages = [
+                { role: "system", content: "You are a helpful AI assistant for the AgroLink platform." }
+            ];
 
-            // Prepare conversation history, skipping the initial bot greeting
-            const contents = [];
             const rawHistory = messages.filter((m, idx) => !(idx === 0 && m.sender === 'bot'));
             rawHistory.push(userMessage);
 
-            const systemPrompt = "System Instruction: You are a helpful AI assistant for the AgroLink platform.\n\n";
-
             for (const msg of rawHistory) {
-                const role = msg.sender === 'bot' ? 'model' : 'user';
-
-                // Skip model message if it's somehow the first message
-                if (contents.length === 0 && role === 'model') continue;
-
-                if (contents.length > 0 && contents[contents.length - 1].role === role) {
-                    // Combine adjacent messages of the same role
-                    contents[contents.length - 1].parts[0].text += "\n\n" + msg.text;
-                } else {
-                    const textToPush = contents.length === 0 ? systemPrompt + msg.text : msg.text;
-                    contents.push({ role, parts: [{ text: textToPush }] });
-                }
+                openaiMessages.push({
+                    role: msg.sender === 'bot' ? 'assistant' : 'user',
+                    content: msg.text
+                });
             }
 
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+            const response = await fetch('http://localhost:1234/v1/chat/completions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    contents,
-                    generationConfig: {
-                        temperature: 0.7,
-                        maxOutputTokens: 500,
-                    }
+                    messages: openaiMessages,
+                    temperature: 0.7,
+                    max_tokens: 500,
                 }),
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                console.error("Gemini API Error details:", errorData);
-                throw new Error(errorData.error?.message || 'Network response was not ok');
+                const errorData = await response.json().catch(() => ({}));
+                console.error("LM Studio API Error details:", errorData);
+                throw new Error(errorData.error?.message || 'Network response was not ok. Is LM Studio running on port 1234?');
             }
 
             const data = await response.json();
-            const botReply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't generate a response.";
+            const botReply = data.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
 
             setMessages((prev) => [...prev, { sender: 'bot', text: botReply }]);
         } catch (error) {
