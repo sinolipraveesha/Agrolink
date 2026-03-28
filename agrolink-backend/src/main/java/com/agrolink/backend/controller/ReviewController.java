@@ -26,6 +26,7 @@ public class ReviewController {
                 request.getOrderId(),
                 request.getReviewerId(),
                 request.getRevieweeId(),
+                request.getProductId(),
                 request.getRating(),
                 request.getComment());
         return ResponseEntity.ok(review);
@@ -36,12 +37,18 @@ public class ReviewController {
         return ResponseEntity.ok(reviewService.getReviewsForProfile(profileId));
     }
 
+    @GetMapping("/product/{productId}")
+    public ResponseEntity<List<Review>> getReviewsForProduct(@PathVariable UUID productId) {
+        return ResponseEntity.ok(reviewService.getReviewsForProduct(productId));
+    }
+
     @PutMapping
     public ResponseEntity<Review> updateReview(@RequestBody ReviewRequest request) {
         Review review = reviewService.updateReview(
                 request.getOrderId(),
                 request.getReviewerId(),
                 request.getRevieweeId(),
+                request.getProductId(),
                 request.getRating(),
                 request.getComment());
         return ResponseEntity.ok(review);
@@ -51,14 +58,16 @@ public class ReviewController {
     public ResponseEntity<Review> getReview(
             @RequestParam UUID orderId,
             @RequestParam UUID reviewerId,
-            @RequestParam UUID revieweeId) {
-        return ResponseEntity.ok(reviewService.getReview(orderId, reviewerId, revieweeId));
+            @RequestParam(required = false) UUID revieweeId,
+            @RequestParam(required = false) UUID productId) {
+        return ResponseEntity.ok(reviewService.getReview(orderId, reviewerId, revieweeId, productId));
     }
 
     public static class ReviewRequest {
         private UUID orderId;
         private UUID reviewerId;
         private UUID revieweeId;
+        private UUID productId;
         private Integer rating; // 1-5
         private String comment;
 
@@ -100,6 +109,14 @@ public class ReviewController {
 
         public void setComment(String comment) {
             this.comment = comment;
+        }
+
+        public UUID getProductId() {
+            return productId;
+        }
+
+        public void setProductId(UUID productId) {
+            this.productId = productId;
         }
     }
 }

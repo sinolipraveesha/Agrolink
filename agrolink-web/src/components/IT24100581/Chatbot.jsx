@@ -28,40 +28,48 @@ export default function Chatbot({ isOpen, onClose }) {
         setIsLoading(true);
 
         try {
-            // LM Studio default local server is http://localhost:1234/v1
+            // Prepare conversation history for LM Studio (OpenAI format)
+            const openaiMessages = [
+                { role: "system", content: "You are a helpful AI assistant for the AgroLink platform." }
+            ];
+
+            const rawHistory = messages.filter((m, idx) => !(idx === 0 && m.sender === 'bot'));
+            rawHistory.push(userMessage);
+
+            for (const msg of rawHistory) {
+                openaiMessages.push({
+                    role: msg.sender === 'bot' ? 'assistant' : 'user',
+                    content: msg.text
+                });
+            }
+
             const response = await fetch('http://localhost:1234/v1/chat/completions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    messages: [
-                        { role: 'system', content: 'You are a helpful AI assistant for the AgroLink platform.' },
-                        ...messages.map(m => ({
-                            role: m.sender === 'bot' ? 'assistant' : 'user',
-                            content: m.text
-                        })),
-                        { role: 'user', content: userMessage.text }
-                    ],
+                    messages: openaiMessages,
                     temperature: 0.7,
                     max_tokens: 500,
-                    stream: false
                 }),
             });
 
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                const errorData = await response.json().catch(() => ({}));
+                console.error("LM Studio API Error details:", errorData);
+                throw new Error(errorData.error?.message || 'Network response was not ok. Is LM Studio running on port 1234?');
             }
 
             const data = await response.json();
-            const botReply = data.choices[0].message.content;
+            const botReply = data.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
 
             setMessages((prev) => [...prev, { sender: 'bot', text: botReply }]);
         } catch (error) {
-            console.error('Error communicating with LM Studio:', error);
+            console.error('Error communicating with Gemini API:', error);
             setMessages((prev) => [...prev, {
                 sender: 'bot',
-                text: 'Sorry, I am having trouble connecting to the brain (LM Studio). Please ensure the local server is running at http://localhost:1234/v1.'
+                text: `Error: ${error.message}`
             }]);
         } finally {
             setIsLoading(false);
