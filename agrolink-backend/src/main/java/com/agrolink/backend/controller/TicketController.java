@@ -3,11 +3,13 @@ package com.agrolink.backend.controller;
 import com.agrolink.backend.model.Ticket;
 import com.agrolink.backend.model.TicketMessage;
 import com.agrolink.backend.model.TicketStatus;
+import com.agrolink.backend.service.SentimentAnalysisService;
 import com.agrolink.backend.service.TicketService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -18,9 +20,26 @@ public class TicketController {
     @Autowired
     private TicketService ticketService;
 
+    @Autowired
+    private SentimentAnalysisService sentimentAnalysisService;
+
     @GetMapping
     public List<Ticket> getAllTickets() {
         return ticketService.getAllTickets();
+    }
+
+    /**
+     * Returns all tickets sorted by priority (URGENT first) then createdAt descending.
+     * Intended for the admin dashboard sort-by-priority feature.
+     */
+    @GetMapping("/sorted")
+    public List<Ticket> getTicketsSortedByPriority() {
+        List<Ticket> tickets = ticketService.getAllTickets();
+        tickets.sort(Comparator
+                .comparingInt((Ticket t) -> sentimentAnalysisService.priorityRank(t.getPriority()))
+                .reversed()
+                .thenComparing(Comparator.comparing(Ticket::getCreatedAt).reversed()));
+        return tickets;
     }
 
     @GetMapping("/user/{userId}")
@@ -35,8 +54,8 @@ public class TicketController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Ticket> getTicket(@PathVariable UUID id) {
-        Ticket ticket = ticketService.getTicketById(id);
+    public ResponseEntity<Ticket> getTicket(@PathVariable UUID id, @RequestParam(required = false) UUID requesterId) {
+        Ticket ticket = ticketService.getTicketById(id, requesterId);
         if (ticket == null)
             return ResponseEntity.notFound().build();
         return ResponseEntity.ok(ticket);
@@ -53,8 +72,17 @@ public class TicketController {
     }
 
     @PutMapping("/{id}/status")
-    public ResponseEntity<Ticket> updateStatus(@PathVariable UUID id, @RequestParam TicketStatus status) {
-        return ResponseEntity.ok(ticketService.updateStatus(id, status));
+    public ResponseEntity<Ticket> updateStatus(@PathVariable UUID id, @RequestParam TicketStatus status, @RequestParam UUID requesterId) {
+        Ticket updated = ticketService.updateStatus(id, status, requesterId);
+        if (updated == null)
+            return ResponseEntity.status(403).build();
+        return ResponseEntity.ok(updated);
+    }
+
+    @PutMapping("/{id}/messages/read")
+    public ResponseEntity<Void> markMessagesAsRead(@PathVariable UUID id, @RequestParam UUID userId) {
+        ticketService.markMessagesAsRead(id, userId);
+        return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/messages/{messageId}")
@@ -63,7 +91,26 @@ public class TicketController {
         if (deleted) {
             return ResponseEntity.ok().build();
         } else {
-            return ResponseEntity.status(403).build(); // Forbidden if not the sender
+            return ResponseEntity.status(403).build(); // Forbidden if not the sender or if reply exists
+        }
+    }
+
+    @PutMapping("/messages/{messageId}")
+    public ResponseEntity<TicketMessage> editMessage(@PathVariable UUID messageId, @RequestBody EditMessageRequest request) {
+        try {
+            return ResponseEntity.ok(ticketService.editMessage(messageId, request.getUserId(), request.getNewText()));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteTicket(@PathVariable UUID id, @RequestParam UUID requesterId) {
+        boolean deleted = ticketService.deleteTicket(id, requesterId);
+        if (deleted) {
+            return ResponseEntity.ok().build();
+        } else {
+            return ResponseEntity.status(403).build();
         }
     }
 
@@ -125,6 +172,27 @@ public class TicketController {
 
         public void setMessage(String message) {
             this.message = message;
+        }
+    }
+
+    public static class EditMessageRequest {
+        private UUID userId;
+        private String newText;
+
+        public UUID getUserId() {
+            return userId;
+        }
+
+        public void setUserId(UUID userId) {
+            this.userId = userId;
+        }
+
+        public String getNewText() {
+            return newText;
+        }
+
+        public void setNewText(String newText) {
+            this.newText = newText;
         }
     }
 }

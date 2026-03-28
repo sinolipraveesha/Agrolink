@@ -402,31 +402,80 @@ export default function FarmerDashboard() {
                     </div>
                 </div>
 
-                {isTopSeller && (
+                {isTopSeller ? (
                     <div className="bg-gradient-to-br from-yellow-50 to-amber-50 p-6 rounded-3xl shadow-lg border border-yellow-100 flex items-center justify-between relative overflow-hidden">
                         <div className="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-gradient-to-br from-yellow-400/20 to-transparent rounded-full blur-xl animate-pulse"></div>
                         <div className="relative z-10 w-full">
-                            <div className="flex items-center gap-2 mb-2">
-                                <Crown className="h-5 w-5 text-yellow-600 fill-yellow-600" />
-                                <span className="text-xs font-black text-yellow-700 uppercase tracking-wider">Top Seller</span>
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                    <Crown className="h-6 w-6 text-yellow-500 fill-yellow-500 drop-shadow-sm" />
+                                    <span className="text-sm font-black text-yellow-700 uppercase tracking-widest">Top Seller</span>
+                                </div>
+                                <div className="bg-yellow-200/50 text-yellow-800 text-[10px] font-black px-2 py-1 rounded-full border border-yellow-300">VERIFIED</div>
                             </div>
-                            <div className="flex justify-between items-end">
+                            <div className="flex justify-between items-end mt-4">
                                 <div>
-                                    <p className="text-[10px] text-yellow-800 font-bold opacity-80">RATING</p>
-                                    <p className="text-xl font-black text-yellow-900">{profile?.rating ? profile.rating.toFixed(1) : "0.0"}/5.0</p>
+                                    <p className="text-[10px] text-yellow-800 font-bold opacity-80 uppercase">Trust Rating</p>
+                                    <p className="text-2xl font-black text-yellow-900 drop-shadow-sm">{profile?.rating ? profile.rating.toFixed(1) : "0.0"}/5.0</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-[10px] text-yellow-800 font-bold opacity-80">RANIING</p>
-                                    <p className="text-xl font-black text-yellow-900">{profile?.wilsonScore ? profile.wilsonScore.toFixed(3) : "0.000"}</p>
+                                    <p className="text-[10px] text-yellow-800 font-bold opacity-80 uppercase">Global Rank</p>
+                                    <p className="text-2xl font-black text-yellow-900 drop-shadow-sm">{profile?.wilsonScore ? profile.wilsonScore.toFixed(3) : "0.000"}</p>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-6 rounded-3xl shadow-lg border border-gray-200 flex flex-col justify-between relative overflow-hidden">
+                        <div className="relative z-10 w-full">
+                            <div className="flex items-center gap-2 mb-3">
+                                <Star className="h-5 w-5 text-gray-400" />
+                                <span className="text-xs font-black text-gray-600 uppercase tracking-wider">Path to Top Seller</span>
+                            </div>
+                            
+                            {/* Calculate Progress */}
+                            {(() => {
+                                let progress = 0;
+                                const ws = profile?.wilsonScore || 0;
+                                const odr = profile?.orderDefectRate || 0;
+                                const lsr = profile?.lateShipmentRate || 0;
+                                const cancel = profile?.preFulfillmentCancellationRate || 0;
+
+                                // 1. Wilson score: >= 0.5 is 25% (progressively added)
+                                if (ws >= 0.5) progress += 25;
+                                else progress += (ws / 0.5) * 25;
+                                
+                                if (odr <= 1.0) progress += 25;
+                                if (lsr <= 4.0) progress += 25;
+                                if (cancel <= 2.5) progress += 25;
+                                
+                                progress = Math.min(100, Math.max(0, isNaN(progress) ? 0 : progress));
+                                
+                                return (
+                                    <>
+                                        <div className="flex justify-between items-end mb-1">
+                                            <p className="text-[10px] font-bold text-gray-500">Progress</p>
+                                            <p className="text-lg font-black text-gray-800">{progress.toFixed(0)}%</p>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2 overflow-hidden border border-gray-300">
+                                            <div 
+                                                className={`h-2.5 rounded-full transition-all duration-1000 ${progress >= 75 ? 'bg-[#1a7935]' : progress >= 40 ? 'bg-yellow-500' : 'bg-orange-500'}`} 
+                                                style={{ width: `${progress}%` }}
+                                            ></div>
+                                        </div>
+                                        <p className="text-[9px] text-gray-400 font-medium leading-tight mt-2">
+                                            Achieve a Wilson Score &gt; 0.5 and meet all SLA targets to unlock <strong className="text-yellow-600">Top Seller</strong> benefits.
+                                        </p>
+                                    </>
+                                );
+                            })()}
                         </div>
                     </div>
                 )}
             </div>
 
             {/* --- MY PERFORMANCE RANKINGS --- */}
-            <div>
+            <div className="mt-8">
                  <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                     <TrendingUp className="h-5 w-5 text-[#1a7935]" />
                     Performance Scorecard

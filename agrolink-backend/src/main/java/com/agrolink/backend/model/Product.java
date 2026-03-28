@@ -50,6 +50,9 @@ public class Product {
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     private ProductStatus status;
 
+    @Column(name = "rating")
+    private Double rating = 0.0;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -157,5 +160,13 @@ public class Product {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Double getRating() {
+        return rating;
+    }
+
+    public void setRating(Double rating) {
+        this.rating = rating;
     }
 }

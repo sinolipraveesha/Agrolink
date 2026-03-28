@@ -6,6 +6,7 @@ import com.agrolink.backend.repository.OrderRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -48,6 +49,7 @@ public class OrderService {
         return updateStatus(id, status, null);
     }
 
+    @Transactional
     public Order updateStatus(UUID id, OrderStatus status, String cancellationReason) {
         System.out.println("🔄 updateStatus called for Order: " + id + " -> " + status);
         return orderRepository.findById(id).map(order -> {
@@ -107,6 +109,7 @@ public class OrderService {
     }
 
 
+    @Transactional
     public Order farmerAcceptOrder(UUID orderId, Double lat, Double lon) {
         return orderRepository.findById(orderId).map(order -> {
             order.setStatus(OrderStatus.accepted);
@@ -118,40 +121,14 @@ public class OrderService {
         }).orElse(null);
     }
 
+    @Transactional(readOnly = true)
     public List<Order> getNearbyAvailableJobs(double driverLat, double driverLon) {
         System.out.println("🔍 getNearbyAvailableJobs called. Driver Lat/Lon: " + driverLat + ", " + driverLon);
 
-        // DEBUG: First, dump ALL orders just to see what's in the DB
-        List<Order> allOrders = orderRepository.findAll();
-        System.out.println("📊 DEBUG: Total orders in DB: " + allOrders.size());
-        for (Order o : allOrders) {
-            System.out.println("   - Order " + o.getId() + " | Status: " + o.getStatus() + " | Farmer: "
-                    + (o.getFarmer() != null ? o.getFarmer().getId() : "null"));
-        }
-
-        // returning Accepted OR Pending orders for now to ensure visibility
-        // This addresses the user's issue where "pending" orders might be what they
-        // expect to see
+        // Explicitly requested by user: Only show orders accepted by the farmer
         List<Order> orders = orderRepository.findByStatus(OrderStatus.accepted);
-        List<Order> pendingOrders = orderRepository.findByStatus(OrderStatus.pending);
-        orders.addAll(pendingOrders);
 
-        System.out.println("   Found " + orders.size() + " available (accepted+pending) orders.");
-
-        // Fallback: Ensure pickup location is set (for older orders)
-        for (Order o : orders) {
-            if (o.getPickupLatitude() == null && o.getFarmer() != null) {
-                // Try to get farmer's location
-                com.agrolink.backend.model.Profile farmer = profileRepository.findById(o.getFarmer().getId())
-                        .orElse(o.getFarmer());
-                if (farmer != null && farmer.getLatitude() != null) {
-                    o.setPickupLatitude(farmer.getLatitude());
-                    o.setPickupLongitude(farmer.getLongitude());
-                    System.out.println(
-                            "   Updated missing pickup loc for Order " + o.getId() + " from Farmer " + farmer.getId());
-                }
-            }
-        }
+        System.out.println("   Found " + orders.size() + " available (accepted) orders.");
         return orders;
     }
 
@@ -294,29 +271,11 @@ public class OrderService {
         return createdOrders;
     }
 
+    @Transactional
     public Order driverAcceptJob(UUID orderId, UUID driverId) {
         return orderRepository.findById(orderId).map(order -> {
-            // Check if already taken?
-            // Allow accepting if status is 'accepted' (meaning Farmer accepted it)
-            // OR checks generic availability.
-            // Note: The user flow seems to imply Driver accepts a "pending" or "available"
-            // job.
-            // But strict logic says 'accepted' by farmer first.
-            // Let's relax this check slightly IF the requirement is that drivers can accept
-            // direct pending orders,
-            // but for now, sticking to 'accepted' or 'pending' if that's the flow.
-            // However, to fix the LOCATION issue:
-
-            if (order.getStatus() != OrderStatus.accepted && order.getStatus() != OrderStatus.pending) {
-                // Allowing 'pending' too if that's how the app works, but safe to stick to
-                // 'accepted'
-                // if the previous logic was strictly 'accepted'.
-                // The error message says "Order is not available for pickup".
-                // Let's keep the status check as is (assuming flow is correct),
-                // just fixing the LOCATION update.
-                if (order.getStatus() != OrderStatus.accepted) {
-                    throw new RuntimeException("Order is not available for pickup (Status must be ACCEPTED by farmer)");
-                }
+            if (order.getStatus() != OrderStatus.accepted) {
+                throw new RuntimeException("Order is not available for pickup (Status must be ACCEPTED by farmer)");
             }
 
             // Assign Driver

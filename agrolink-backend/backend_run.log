@@ -35,44 +35,146 @@
 
  :: Spring Boot ::                (v4.0.2)
 
-2026-03-20T10:05:33.718+05:30  INFO 2854 --- [agrolink-backend] [           main] c.a.backend.AgrolinkBackendApplication   : Starting AgrolinkBackendApplication using Java 25.0.2 with PID 2854 (/Users/shashinkavintha/Documents/My/Agrolink/agrolink-backend/target/classes started by shashinkavintha in /Users/shashinkavintha/Documents/My/Agrolink/agrolink-backend)
-2026-03-20T10:05:33.719+05:30  INFO 2854 --- [agrolink-backend] [           main] c.a.backend.AgrolinkBackendApplication   : No active profile set, falling back to 1 default profile: "default"
-2026-03-20T10:05:33.932+05:30  INFO 2854 --- [agrolink-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-03-20T10:05:33.953+05:30  INFO 2854 --- [agrolink-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 18 ms. Found 11 JPA repository interfaces.
-2026-03-20T10:05:34.111+05:30  INFO 2854 --- [agrolink-backend] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
-2026-03-20T10:05:34.116+05:30  INFO 2854 --- [agrolink-backend] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-03-20T10:05:34.116+05:30  INFO 2854 --- [agrolink-backend] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.15]
-2026-03-20T10:05:34.131+05:30  INFO 2854 --- [agrolink-backend] [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 392 ms
-2026-03-20T10:05:34.184+05:30  INFO 2854 --- [agrolink-backend] [           main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
-2026-03-20T10:05:34.209+05:30  INFO 2854 --- [agrolink-backend] [           main] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.2.1.Final
-2026-03-20T10:05:34.212+05:30  INFO 2854 --- [agrolink-backend] [           main] o.h.spatial.integration.SpatialService   : HHH80000001: Hibernate Spatial integration enabled: true
-2026-03-20T10:05:34.303+05:30  INFO 2854 --- [agrolink-backend] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
-2026-03-20T10:05:35.823+05:30  INFO 2854 --- [agrolink-backend] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
-2026-03-20T10:05:36.650+05:30  WARN 2854 --- [agrolink-backend] [           main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
-2026-03-20T10:05:37.040+05:30  INFO 2854 --- [agrolink-backend] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
-	Database JDBC URL [jdbc:postgresql://aws-1-ap-south-1.pooler.supabase.com:6543/postgres?sslmode=require&prepareThreshold=0]
-	Database driver: PostgreSQL JDBC Driver
+2026-03-28T12:10:58.673+05:30  INFO 55917 --- [agrolink-backend] [           main] c.a.backend.AgrolinkBackendApplication   : Starting AgrolinkBackendApplication using Java 25.0.2 with PID 55917 (/Users/shashinkavintha/Documents/My/Agrolink/agrolink-backend/target/classes started by shashinkavintha in /Users/shashinkavintha/Documents/My/Agrolink/agrolink-backend)
+2026-03-28T12:10:58.674+05:30  INFO 55917 --- [agrolink-backend] [           main] c.a.backend.AgrolinkBackendApplication   : No active profile set, falling back to 1 default profile: "default"
+2026-03-28T12:10:58.866+05:30  INFO 55917 --- [agrolink-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-03-28T12:10:58.888+05:30  INFO 55917 --- [agrolink-backend] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 18 ms. Found 12 JPA repository interfaces.
+2026-03-28T12:10:59.038+05:30  INFO 55917 --- [agrolink-backend] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-03-28T12:10:59.042+05:30  INFO 55917 --- [agrolink-backend] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-03-28T12:10:59.042+05:30  INFO 55917 --- [agrolink-backend] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-03-28T12:10:59.055+05:30  INFO 55917 --- [agrolink-backend] [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 363 ms
+2026-03-28T12:10:59.097+05:30  INFO 55917 --- [agrolink-backend] [           main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-03-28T12:10:59.112+05:30  INFO 55917 --- [agrolink-backend] [           main] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.2.1.Final
+2026-03-28T12:10:59.115+05:30  INFO 55917 --- [agrolink-backend] [           main] o.h.spatial.integration.SpatialService   : HHH80000001: Hibernate Spatial integration enabled: true
+2026-03-28T12:10:59.190+05:30  INFO 55917 --- [agrolink-backend] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-03-28T12:11:03.841+05:30  INFO 55917 --- [agrolink-backend] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@356f20b7
+2026-03-28T12:11:03.843+05:30  INFO 55917 --- [agrolink-backend] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-03-28T12:14:21.876+05:30  WARN 55917 --- [agrolink-backend] [           main] com.zaxxer.hikari.pool.ProxyConnection   : HikariPool-1 - Connection org.postgresql.jdbc.PgConnection@356f20b7 marked as broken because of SQLSTATE(08006), ErrorCode(0)
+
+org.postgresql.util.PSQLException: An I/O error occurred while sending to the backend.
+	at org.postgresql.core.v3.QueryExecutorImpl.execute(QueryExecutorImpl.java:456) ~[postgresql-42.7.9.jar:42.7.9]
+	at org.postgresql.jdbc.PgStatement.executeInternal(PgStatement.java:526) ~[postgresql-42.7.9.jar:42.7.9]
+	at org.postgresql.jdbc.PgStatement.execute(PgStatement.java:436) ~[postgresql-42.7.9.jar:42.7.9]
+	at org.postgresql.jdbc.PgStatement.executeWithFlags(PgStatement.java:358) ~[postgresql-42.7.9.jar:42.7.9]
+	at org.postgresql.jdbc.PgStatement.executeCachedSql(PgStatement.java:343) ~[postgresql-42.7.9.jar:42.7.9]
+	at org.postgresql.jdbc.PgStatement.executeWithFlags(PgStatement.java:319) ~[postgresql-42.7.9.jar:42.7.9]
+	at org.postgresql.jdbc.PgStatement.executeQuery(PgStatement.java:269) ~[postgresql-42.7.9.jar:42.7.9]
+	at org.postgresql.jdbc.PgDatabaseMetaData.getSQLKeywords(PgDatabaseMetaData.java:356) ~[postgresql-42.7.9.jar:42.7.9]
+	at com.zaxxer.hikari.pool.HikariProxyDatabaseMetaData.getSQLKeywords(HikariProxyDatabaseMetaData.java) ~[HikariCP-7.0.2.jar:na]
+	at org.hibernate.engine.jdbc.env.internal.JdbcEnvironmentInitiator$1.execute(JdbcEnvironmentInitiator.java:393) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.engine.jdbc.env.internal.JdbcEnvironmentInitiator$1.execute(JdbcEnvironmentInitiator.java:367) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.jdbc.WorkExecutor.executeReturningWork(WorkExecutor.java:56) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.jdbc.AbstractReturningWork.accept(AbstractReturningWork.java:32) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcIsolationDelegate.doWorkAndCommit(JdbcIsolationDelegate.java:89) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcIsolationDelegate.delegateWork(JdbcIsolationDelegate.java:64) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.engine.jdbc.env.internal.JdbcEnvironmentInitiator.getJdbcEnvironmentUsingJdbcMetadata(JdbcEnvironmentInitiator.java:366) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.engine.jdbc.env.internal.JdbcEnvironmentInitiator.getJdbcEnvironment(JdbcEnvironmentInitiator.java:143) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.engine.jdbc.env.internal.JdbcEnvironmentInitiator.initiateService(JdbcEnvironmentInitiator.java:120) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.engine.jdbc.env.internal.JdbcEnvironmentInitiator.initiateService(JdbcEnvironmentInitiator.java:80) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.boot.registry.internal.StandardServiceRegistryImpl.initiateService(StandardServiceRegistryImpl.java:133) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.service.internal.AbstractServiceRegistryImpl.createService(AbstractServiceRegistryImpl.java:260) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.service.internal.AbstractServiceRegistryImpl.initializeService(AbstractServiceRegistryImpl.java:235) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.service.internal.AbstractServiceRegistryImpl.getService(AbstractServiceRegistryImpl.java:212) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.service.ServiceRegistry.requireService(ServiceRegistry.java:66) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.engine.jdbc.internal.JdbcServicesImpl.configure(JdbcServicesImpl.java:50) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.boot.registry.internal.StandardServiceRegistryImpl.configureService(StandardServiceRegistryImpl.java:139) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.service.internal.AbstractServiceRegistryImpl.initializeService(AbstractServiceRegistryImpl.java:244) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.service.internal.AbstractServiceRegistryImpl.getService(AbstractServiceRegistryImpl.java:212) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.spatial.contributor.ContributorResolver.resolveSpatialtypeContributorImplementor(ContributorResolver.java:49) ~[hibernate-spatial-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.spatial.contributor.SpatialTypeContributor.contribute(SpatialTypeContributor.java:15) ~[hibernate-spatial-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.boot.internal.MetadataBuilderImpl.applyTypes(MetadataBuilderImpl.java:289) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at java.base/java.lang.Iterable.forEach(Iterable.java:75) ~[na:na]
+	at java.base/java.util.Collections$UnmodifiableCollection.forEach(Collections.java:1118) ~[na:na]
+	at org.hibernate.jpa.boot.internal.EntityManagerFactoryBuilderImpl.applyTypeContributors(EntityManagerFactoryBuilderImpl.java:1363) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.jpa.boot.internal.EntityManagerFactoryBuilderImpl.applyMetamodelBuilderSettings(EntityManagerFactoryBuilderImpl.java:1340) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.jpa.boot.internal.EntityManagerFactoryBuilderImpl.<init>(EntityManagerFactoryBuilderImpl.java:226) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at org.hibernate.jpa.boot.internal.EntityManagerFactoryBuilderImpl.<init>(EntityManagerFactoryBuilderImpl.java:164) ~[hibernate-core-7.2.1.Final.jar:7.2.1.Final]
+	at org.springframework.orm.jpa.vendor.SpringHibernateJpaPersistenceProvider.createContainerEntityManagerFactory(SpringHibernateJpaPersistenceProvider.java:54) ~[spring-orm-7.0.3.jar:7.0.3]
+	at org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean.createNativeEntityManagerFactory(LocalContainerEntityManagerFactoryBean.java:433) ~[spring-orm-7.0.3.jar:7.0.3]
+	at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.buildNativeEntityManagerFactory(AbstractEntityManagerFactoryBean.java:416) ~[spring-orm-7.0.3.jar:7.0.3]
+	at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.afterPropertiesSet(AbstractEntityManagerFactoryBean.java:396) ~[spring-orm-7.0.3.jar:7.0.3]
+	at org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean.afterPropertiesSet(LocalContainerEntityManagerFactoryBean.java:409) ~[spring-orm-7.0.3.jar:7.0.3]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.invokeInitMethods(AbstractAutowireCapableBeanFactory.java:1864) ~[spring-beans-7.0.3.jar:7.0.3]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1813) ~[spring-beans-7.0.3.jar:7.0.3]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:603) ~[spring-beans-7.0.3.jar:7.0.3]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:525) ~[spring-beans-7.0.3.jar:7.0.3]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:333) ~[spring-beans-7.0.3.jar:7.0.3]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:371) ~[spring-beans-7.0.3.jar:7.0.3]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:331) ~[spring-beans-7.0.3.jar:7.0.3]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:201) ~[spring-beans-7.0.3.jar:7.0.3]
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:976) ~[spring-context-7.0.3.jar:7.0.3]
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:620) ~[spring-context-7.0.3.jar:7.0.3]
+	at org.springframework.boot.web.server.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:143) ~[spring-boot-web-server-4.0.2.jar:4.0.2]
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:756) ~[spring-boot-4.0.2.jar:4.0.2]
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:445) ~[spring-boot-4.0.2.jar:4.0.2]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:321) ~[spring-boot-4.0.2.jar:4.0.2]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1365) ~[spring-boot-4.0.2.jar:4.0.2]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354) ~[spring-boot-4.0.2.jar:4.0.2]
+	at com.agrolink.backend.AgrolinkBackendApplication.main(AgrolinkBackendApplication.java:43) ~[classes/:na]
+Caused by: java.net.SocketException: Connection reset
+	at java.base/sun.nio.ch.NioSocketImpl.implRead(NioSocketImpl.java:316) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl.read(NioSocketImpl.java:354) ~[na:na]
+	at java.base/sun.nio.ch.NioSocketImpl$1.read(NioSocketImpl.java:798) ~[na:na]
+	at java.base/java.net.Socket$SocketInputStream.implRead(Socket.java:974) ~[na:na]
+	at java.base/java.net.Socket$SocketInputStream.read(Socket.java:964) ~[na:na]
+	at java.base/sun.security.ssl.SSLSocketInputRecord.read(SSLSocketInputRecord.java:489) ~[na:na]
+	at java.base/sun.security.ssl.SSLSocketInputRecord.readHeader(SSLSocketInputRecord.java:483) ~[na:na]
+	at java.base/sun.security.ssl.SSLSocketInputRecord.bytesInCompletePacket(SSLSocketInputRecord.java:70) ~[na:na]
+	at java.base/sun.security.ssl.SSLSocketImpl.readApplicationRecord(SSLSocketImpl.java:1461) ~[na:na]
+	at java.base/sun.security.ssl.SSLSocketImpl$AppInputStream.read(SSLSocketImpl.java:1068) ~[na:na]
+	at org.postgresql.core.VisibleBufferedInputStream.readMore(VisibleBufferedInputStream.java:192) ~[postgresql-42.7.9.jar:42.7.9]
+	at org.postgresql.core.VisibleBufferedInputStream.ensureBytes(VisibleBufferedInputStream.java:159) ~[postgresql-42.7.9.jar:42.7.9]
+	at org.postgresql.core.VisibleBufferedInputStream.ensureBytes(VisibleBufferedInputStream.java:144) ~[postgresql-42.7.9.jar:42.7.9]
+	at org.postgresql.core.VisibleBufferedInputStream.read(VisibleBufferedInputStream.java:76) ~[postgresql-42.7.9.jar:42.7.9]
+	at org.postgresql.core.PGStream.receiveChar(PGStream.java:477) ~[postgresql-42.7.9.jar:42.7.9]
+	at org.postgresql.core.v3.QueryExecutorImpl.processResults(QueryExecutorImpl.java:2285) ~[postgresql-42.7.9.jar:42.7.9]
+	at org.postgresql.core.v3.QueryExecutorImpl.execute(QueryExecutorImpl.java:429) ~[postgresql-42.7.9.jar:42.7.9]
+	... 58 common frames omitted
+
+2026-03-28T12:14:21.884+05:30  WARN 55917 --- [agrolink-backend] [           main] org.hibernate.orm.jdbc                   : HHH100045: Could not obtain connection metadata: org.postgresql.util.PSQLException: An I/O error occurred while sending to the backend.
+2026-03-28T12:14:21.902+05:30  WARN 55917 --- [agrolink-backend] [           main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-03-28T12:14:21.910+05:30  INFO 55917 --- [agrolink-backend] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [undefined/unknown]
+	Database driver: undefined/unknown
 	Database dialect: PostgreSQLDialect
-	Database version: 17.6
-	Default catalog/schema: postgres/public
+	Database version: 13.0
+	Default catalog/schema: unknown/unknown
 	Autocommit mode: undefined/unknown
-	Isolation level: READ_COMMITTED [default READ_COMMITTED]
-	JDBC fetch size: none
+	Isolation level: NONE [default NONE]
+	JDBC fetch size: undefined/unknown
 	Pool: DataSourceConnectionProvider
 	Minimum pool size: undefined/unknown
 	Maximum pool size: undefined/unknown
-2026-03-20T10:05:37.114+05:30  INFO 2854 --- [agrolink-backend] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-03-20T10:05:37.478+05:30  INFO 2854 --- [agrolink-backend] [           main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-03-20T10:05:37.481+05:30  INFO 2854 --- [agrolink-backend] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-03-20T10:05:37.509+05:30  INFO 2854 --- [agrolink-backend] [           main] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
-2026-03-20T10:05:37.673+05:30  WARN 2854 --- [agrolink-backend] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-03-20T10:05:37.764+05:30  INFO 2854 --- [agrolink-backend] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
-2026-03-20T10:05:37.764+05:30  INFO 2854 --- [agrolink-backend] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@5e79bdf6]]
-2026-03-20T10:05:37.764+05:30  INFO 2854 --- [agrolink-backend] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
-2026-03-20T10:05:37.768+05:30  INFO 2854 --- [agrolink-backend] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
-2026-03-20T10:05:37.770+05:30  INFO 2854 --- [agrolink-backend] [           main] c.a.backend.AgrolinkBackendApplication   : Started AgrolinkBackendApplication in 4.169 seconds (process running for 4.289)
-Applying database fix: Altering order_items to allow null product_id
-Database fix applied successfully!
+2026-03-28T12:14:21.980+05:30  INFO 55917 --- [agrolink-backend] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-03-28T12:14:22.346+05:30  INFO 55917 --- [agrolink-backend] [           main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+Hibernate: 
+    drop type if exists OrderStatus cascade
+2026-03-28T12:14:22.911+05:30  WARN 55917 --- [agrolink-backend] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-03-28T12:14:22.911+05:30  WARN 55917 --- [agrolink-backend] [           main] org.hibernate.orm.jdbc.warn              : drop cascades to 2 other objects
+Hibernate: 
+    drop type if exists ProductStatus cascade
+2026-03-28T12:14:23.020+05:30  WARN 55917 --- [agrolink-backend] [           main] org.hibernate.orm.jdbc.warn              : HHH000247: ErrorCode: 0, SQLState: 00000
+2026-03-28T12:14:23.021+05:30  WARN 55917 --- [agrolink-backend] [           main] org.hibernate.orm.jdbc.warn              : drop cascades to 2 other objects
+Hibernate: 
+    create type OrderStatus as enum ('accepted','cancelled','delivered','disputed','pending','ready_to_ship','shipped')
+Hibernate: 
+    create cast (varchar as OrderStatus) with inout as implicit
+Hibernate: 
+    create cast (OrderStatus as varchar) with inout as implicit
+Hibernate: 
+    create type ProductStatus as enum ('approved','pending','rejected')
+Hibernate: 
+    create cast (varchar as ProductStatus) with inout as implicit
+Hibernate: 
+    create cast (ProductStatus as varchar) with inout as implicit
+2026-03-28T12:14:37.558+05:30  INFO 55917 --- [agrolink-backend] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-03-28T12:14:37.617+05:30  INFO 55917 --- [agrolink-backend] [           main] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-03-28T12:14:37.797+05:30  WARN 55917 --- [agrolink-backend] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-03-28T12:14:37.889+05:30  INFO 55917 --- [agrolink-backend] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Starting...
+2026-03-28T12:14:37.889+05:30  INFO 55917 --- [agrolink-backend] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : BrokerAvailabilityEvent[available=true, SimpleBrokerMessageHandler [org.springframework.messaging.simp.broker.DefaultSubscriptionRegistry@199dee18]]
+2026-03-28T12:14:37.889+05:30  INFO 55917 --- [agrolink-backend] [           main] o.s.m.s.b.SimpleBrokerMessageHandler     : Started.
+2026-03-28T12:14:37.894+05:30  INFO 55917 --- [agrolink-backend] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-03-28T12:14:37.897+05:30  INFO 55917 --- [agrolink-backend] [           main] c.a.backend.AgrolinkBackendApplication   : Started AgrolinkBackendApplication in 219.33 seconds (process running for 219.441)
 Checking for legacy categories...
 Hibernate: 
     select
@@ -88,12 +190,19 @@ Category: Vegetables, Type: 'MARKETPLACE'
 Category: Fruits, Type: 'MARKETPLACE'
 Category: Spices, Type: 'MARKETPLACE'
 Category: Grains, Type: 'MARKETPLACE'
-2026-03-20T10:06:37.771+05:30  INFO 2854 --- [agrolink-backend] [MessageBroker-1] o.s.w.s.c.WebSocketMessageBrokerStats    : WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 0 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(0)-CONNECTED(0)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], outboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], sockJsScheduler[pool size = 1, active threads = 1, queued tasks = 0, completed tasks = 0]
+Hibernate: 
+    select
+        count(*) 
+    from
+        public.knowledge_entries ke1_0
+Knowledge base already seeded, skipping.
+Database fixes applied successfully!
+2026-03-28T12:15:37.900+05:30  INFO 55917 --- [agrolink-backend] [MessageBroker-1] o.s.w.s.c.WebSocketMessageBrokerStats    : WebSocketSession[0 current WS(0)-HttpStream(0)-HttpPoll(0), 0 total, 0 closed abnormally (0 connect failure, 0 send limit, 0 transport error)], stompSubProtocol[processed CONNECT(0)-CONNECTED(0)-DISCONNECT(0)], stompBrokerRelay[null], inboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], outboundChannel[pool size = 0, active threads = 0, queued tasks = 0, completed tasks = 0], sockJsScheduler[pool size = 2, active threads = 1, queued tasks = 1, completed tasks = 0]
 [INFO] ------------------------------------------------------------------------
 [INFO] BUILD FAILURE
 [INFO] ------------------------------------------------------------------------
-[INFO] Total time:  02:35 min
-[INFO] Finished at: 2026-03-20T10:08:08+05:30
+[INFO] Total time:  04:42 min
+[INFO] Finished at: 2026-03-28T12:15:40+05:30
 [INFO] ------------------------------------------------------------------------
 [ERROR] Failed to execute goal org.springframework.boot:spring-boot-maven-plugin:4.0.2:run (default-cli) on project agrolink-backend: Process terminated with exit code: 137 -> [Help 1]
 [ERROR] 

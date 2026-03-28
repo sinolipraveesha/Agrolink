@@ -41,6 +41,8 @@ import MyOrders from './pages/buyer/MyOrders';
 import PostRequest from './pages/marketplace/PostRequest';
 import MyRequests from './pages/marketplace/MyRequests';
 import Marketplace from './pages/marketplace/Marketplace';
+import ChatApp from './pages/chat/ChatApp';
+import ChatInbox from './pages/chat/ChatInbox';
 
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
@@ -58,6 +60,8 @@ function App() {
             <Route path="/post-request" element={<PostRequest />} />
             <Route path="/my-requests" element={<MyRequests />} />
             <Route path="/marketplace" element={<Marketplace />} />
+            <Route path="/chat/:conversationId" element={<ChatApp />} />
+            <Route path="/inbox" element={<ChatInbox />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/verification-pending" element={<VerificationPending />} />

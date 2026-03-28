@@ -45,6 +45,17 @@ public class RankingService {
         updateRanking(farmer);
         updateKPIs(farmer);
 
+        // Determine Top Seller Status
+        boolean isTop = false;
+        if (farmer.getWilsonScore() != null && farmer.getOrderDefectRate() != null && 
+            farmer.getLateShipmentRate() != null && farmer.getPreFulfillmentCancellationRate() != null) {
+            isTop = farmer.getWilsonScore() >= 0.5 && 
+                    farmer.getOrderDefectRate() <= 1.0 && 
+                    farmer.getLateShipmentRate() <= 4.0 && 
+                    farmer.getPreFulfillmentCancellationRate() <= 2.5;
+        }
+        farmer.setIsTopSeller(isTop);
+
         profileRepository.save(farmer);
     }
 

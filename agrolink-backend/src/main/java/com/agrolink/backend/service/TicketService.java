@@ -31,6 +31,9 @@ public class TicketService {
     @Autowired
     private NotificationService notificationService;
 
+    @Autowired
+    private SentimentAnalysisService sentimentAnalysisService;
+
     public List<Ticket> getAllTickets() {
         return ticketRepository.findAll();
     }
@@ -45,9 +48,15 @@ public class TicketService {
         ticket.setUser(user);
         ticket.setSubject(subject);
         ticket.setDescription(description);
-        ticket.setPriority(priority);
-        // Default status is OPEN
-        // Default createdAt is now
+
+        // NLP: analyze subject + description to determine sentiment-based priority
+        String nlpPriority = sentimentAnalysisService.analyzePriority(subject + " " + description);
+        // Use the higher of user-supplied priority and NLP-detected priority
+        String effectivePriority = sentimentAnalysisService.isEscalation(priority, nlpPriority)
+                ? nlpPriority
+                : (priority != null ? priority : "MEDIUM");
+        ticket.setPriority(effectivePriority);
+
         Ticket savedTicket = ticketRepository.save(ticket);
 
         // Notify all admins about the new ticket
@@ -55,7 +64,7 @@ public class TicketService {
         for (Profile admin : admins) {
             notificationService.createNotification(
                     admin.getId(),
-                    "New Support Ticket",
+                    "New Support Ticket [" + effectivePriority + "]",
                     user.getFullName() + " created a support ticket: " + subject,
                     "SUPPORT_TICKET",
                     savedTicket.getId());
@@ -64,8 +73,16 @@ public class TicketService {
         return savedTicket;
     }
 
-    public Ticket getTicketById(UUID id) {
-        return ticketRepository.findById(id).orElse(null);
+    public Ticket getTicketById(UUID id, UUID requesterId) {
+        Ticket ticket = ticketRepository.findById(id).orElse(null);
+        if (ticket == null) return null;
+        if (requesterId != null) {
+            Profile requester = profileRepository.findById(requesterId).orElse(null);
+            if (requester != null && requester.getRole() != UserRole.admin && !ticket.getUser().getId().equals(requesterId)) {
+                return null;
+            }
+        }
+        return ticket;
     }
 
     @Transactional
@@ -80,12 +97,24 @@ public class TicketService {
         message.setMessage(text);
         message.setCreatedAt(LocalDateTime.now());
 
-        // If message is from admin (not ticket owner), maybe update status?
-        // For now just keep status as is or update to IN_PROGRESS if open
         boolean isTicketOwner = sender.getId().equals(ticket.getUser().getId());
+        boolean ticketModified = false;
 
         if (ticket.getStatus() == TicketStatus.OPEN && !isTicketOwner) {
             ticket.setStatus(TicketStatus.IN_PROGRESS);
+            ticketModified = true;
+        }
+
+        // NLP: if the message is from the ticket owner, analyze it and escalate priority if needed
+        if (isTicketOwner) {
+            String nlpPriority = sentimentAnalysisService.analyzePriority(text);
+            if (sentimentAnalysisService.isEscalation(ticket.getPriority(), nlpPriority)) {
+                ticket.setPriority(nlpPriority);
+                ticketModified = true;
+            }
+        }
+
+        if (ticketModified) {
             ticketRepository.save(ticket);
         }
 
@@ -117,7 +146,11 @@ public class TicketService {
         return savedMessage;
     }
 
-    public Ticket updateStatus(UUID ticketId, TicketStatus newStatus) {
+    public Ticket updateStatus(UUID ticketId, TicketStatus newStatus, UUID requesterId) {
+        Profile requester = profileRepository.findById(requesterId).orElse(null);
+        if (requester == null || requester.getRole() != UserRole.admin) {
+            return null; // Not authorized
+        }
         Ticket ticket = ticketRepository.findById(ticketId).orElseThrow(() -> new RuntimeException("Ticket not found"));
         ticket.setStatus(newStatus);
         return ticketRepository.save(ticket);
@@ -125,6 +158,38 @@ public class TicketService {
 
     public List<TicketMessage> getMessages(UUID ticketId) {
         return ticketMessageRepository.findByTicketIdOrderByCreatedAtAsc(ticketId);
+    }
+
+    @Transactional
+    public void markMessagesAsRead(UUID ticketId, UUID viewerId) {
+        List<TicketMessage> messages = ticketMessageRepository.findByTicketIdOrderByCreatedAtAsc(ticketId);
+        for (TicketMessage msg : messages) {
+            if (!msg.getSender().getId().equals(viewerId) && !"READ".equals(msg.getStatus())) {
+                msg.setStatus("READ");
+                ticketMessageRepository.save(msg);
+            }
+        }
+    }
+
+    @Transactional
+    public TicketMessage editMessage(UUID messageId, UUID userId, String newText) {
+        TicketMessage message = ticketMessageRepository.findById(messageId)
+                .orElseThrow(() -> new RuntimeException("Message not found"));
+
+        if (!message.getSender().getId().equals(userId)) {
+            throw new RuntimeException("Not authorized");
+        }
+
+        List<TicketMessage> ticketMessages = ticketMessageRepository.findByTicketIdOrderByCreatedAtAsc(message.getTicket().getId());
+        for (TicketMessage m : ticketMessages) {
+            if (m.getCreatedAt().isAfter(message.getCreatedAt()) && !m.getSender().getId().equals(userId)) {
+                throw new RuntimeException("Cannot edit after reply");
+            }
+        }
+
+        message.setMessage(newText);
+        message.setEdited(true);
+        return ticketMessageRepository.save(message);
     }
 
     @Transactional
@@ -139,7 +204,35 @@ public class TicketService {
             return false; // Not authorized
         }
 
+        List<TicketMessage> ticketMessages = ticketMessageRepository.findByTicketIdOrderByCreatedAtAsc(message.getTicket().getId());
+        for (TicketMessage m : ticketMessages) {
+            if (m.getCreatedAt().isAfter(message.getCreatedAt()) && !m.getSender().getId().equals(userId)) {
+                return false; // Cannot delete after a reply
+            }
+        }
+
         ticketMessageRepository.delete(message);
+        return true;
+    }
+
+    @Transactional
+    public boolean deleteTicket(UUID ticketId, UUID requesterId) {
+        Ticket ticket = ticketRepository.findById(ticketId).orElse(null);
+        if (ticket == null) return false;
+
+        Profile requester = profileRepository.findById(requesterId).orElse(null);
+        if (requester == null) return false;
+
+        boolean isAdmin = requester.getRole() == UserRole.admin;
+        boolean isOwner = ticket.getUser().getId().equals(requesterId);
+
+        if (!isAdmin && !isOwner) {
+            return false;
+        }
+
+        List<TicketMessage> messages = ticketMessageRepository.findByTicketIdOrderByCreatedAtAsc(ticketId);
+        ticketMessageRepository.deleteAll(messages);
+        ticketRepository.delete(ticket);
         return true;
     }
 }
