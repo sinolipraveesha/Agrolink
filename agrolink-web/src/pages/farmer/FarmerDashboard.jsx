@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
-import { DollarSign, ShoppingBag, Truck, TrendingUp, Loader2, CheckCircle, XCircle, Star, User, Crown, MapPin, Navigation, RefreshCw } from 'lucide-react';
+import { DollarSign, ShoppingBag, Truck, TrendingUp, Loader2, CheckCircle, XCircle, Star, User, Crown, MapPin, Navigation, RefreshCw, AlertCircle } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -283,13 +283,8 @@ export default function FarmerDashboard() {
         );
     }
 
-    // Top Seller Metrics
-    const deliveredOrders = orders.filter(o => o.status === 'delivered');
-    const calculatedOrders = deliveredOrders.length;
-    const calculatedEarnings = deliveredOrders.reduce((acc, curr) => acc + (curr.totalAmount || 0), 0);
-    const currentRating = profile?.rating || 0;
-    const meetsCriteria = calculatedOrders >= 100 && currentRating >= 4.8 && calculatedEarnings >= 100000;
-    const isTopSeller = profile?.isTopSeller || meetsCriteria;
+    // Top Seller Metrics (Read from Backend)
+    const isTopSeller = profile?.isTopSeller;
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -418,16 +413,61 @@ export default function FarmerDashboard() {
                             <div className="flex justify-between items-end">
                                 <div>
                                     <p className="text-[10px] text-yellow-800 font-bold opacity-80">RATING</p>
-                                    <p className="text-xl font-black text-yellow-900">{currentRating.toFixed(1)}/5.0</p>
+                                    <p className="text-xl font-black text-yellow-900">{profile?.rating ? profile.rating.toFixed(1) : "0.0"}/5.0</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-[10px] text-yellow-800 font-bold opacity-80">ORDERS</p>
-                                    <p className="text-xl font-black text-yellow-900">{calculatedOrders}+</p>
+                                    <p className="text-[10px] text-yellow-800 font-bold opacity-80">RANIING</p>
+                                    <p className="text-xl font-black text-yellow-900">{profile?.wilsonScore ? profile.wilsonScore.toFixed(3) : "0.000"}</p>
                                 </div>
                             </div>
                         </div>
                     </div>
                 )}
+            </div>
+
+            {/* --- MY PERFORMANCE RANKINGS --- */}
+            <div>
+                 <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-[#1a7935]" />
+                    Performance Scorecard
+                 </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
+                        <div className="flex justify-between items-start mb-4">
+                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Merchant Rank</p>
+                            <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><Star className="h-4 w-4 fill-current" /></div>
+                        </div>
+                        <h3 className="text-2xl font-black text-gray-900">{profile?.wilsonScore?.toFixed(3) || "0.000"}</h3>
+                        <p className="text-xs text-gray-400 mt-1">Wilson Confidence Score</p>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
+                        <div className="flex justify-between items-start mb-4">
+                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Order Defect Rate</p>
+                            <div className={`p-2 rounded-lg ${profile?.orderDefectRate > 1.0 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}><AlertCircle className="h-4 w-4" /></div>
+                        </div>
+                        <h3 className={`text-2xl font-black ${profile?.orderDefectRate > 1.0 ? 'text-red-600' : 'text-gray-900'}`}>{profile?.orderDefectRate?.toFixed(1) || "0.0"}%</h3>
+                        <p className="text-xs text-gray-400 mt-1">Target: &lt; 1.0%</p>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
+                        <div className="flex justify-between items-start mb-4">
+                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Late Ship Rate</p>
+                            <div className={`p-2 rounded-lg ${profile?.lateShipmentRate > 4.0 ? 'bg-orange-50 text-orange-600' : 'bg-green-50 text-green-600'}`}><TrendingUp className="h-4 w-4" /></div>
+                        </div>
+                        <h3 className={`text-2xl font-black ${profile?.lateShipmentRate > 4.0 ? 'text-orange-600' : 'text-gray-900'}`}>{profile?.lateShipmentRate?.toFixed(1) || "0.0"}%</h3>
+                        <p className="text-xs text-gray-400 mt-1">Target: &lt; 4.0%</p>
+                    </div>
+
+                    <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
+                        <div className="flex justify-between items-start mb-4">
+                            <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Cancel Rate</p>
+                            <div className={`p-2 rounded-lg ${profile?.preFulfillmentCancellationRate > 2.5 ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}><XCircle className="h-4 w-4" /></div>
+                        </div>
+                        <h3 className={`text-2xl font-black ${profile?.preFulfillmentCancellationRate > 2.5 ? 'text-red-600' : 'text-gray-900'}`}>{profile?.preFulfillmentCancellationRate?.toFixed(1) || "0.0"}%</h3>
+                        <p className="text-xs text-gray-400 mt-1">Target: &lt; 2.5%</p>
+                    </div>
+                </div>
             </div>
 
             {/* Client Reviews Section */}

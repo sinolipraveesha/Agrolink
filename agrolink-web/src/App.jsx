@@ -16,11 +16,16 @@ import AdminSupport from './pages/admin/AdminSupport';
 
 import AdminLayout from './components/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminDriverRegistration from './pages/admin/AdminDriverRegistration';
 import UserVerification from './pages/admin/UserVerification';
 import ProductReview from './pages/admin/ProductReview';
 import OrderManagement from './pages/admin/OrderManagement';
 import AdminFarmersShop from './pages/admin/AdminFarmersShop';
 import LogisticsMap from './pages/admin/LogisticsMap';
+import SellerKPIs from './pages/admin/SellerKPIs';
+
+import SupplierLayout from './components/supplier/SupplierLayout';
+import SupplierDashboard from './pages/supplier/SupplierDashboard';
 
 import DriverLayout from './components/driver/DriverLayout';
 import DriverDashboard from './pages/driver/DriverDashboard';
@@ -86,17 +91,25 @@ function App() {
               <Route path="wallet" element={<DriverWallet />} />
               <Route path="vehicle" element={<VehicleProfile />} />
               <Route path="support" element={<DriverSupport />} />
-              <Route path="profile" element={<div className="p-10">My Profile Coming Soon</div>} />
+            </Route>
+
+            {/* Supplier Routes */}
+            <Route path="/supplier" element={<SupplierLayout />}>
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<SupplierDashboard />} />
+              <Route path="products" element={<SupplierDashboard />} />
             </Route>
 
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<Navigate to="dashboard" replace />} />
               <Route path="dashboard" element={<AdminDashboard />} />
+              <Route path="register-driver" element={<AdminDriverRegistration />} />
               <Route path="verification" element={<UserVerification />} />
               <Route path="products" element={<ProductReview />} />
               <Route path="orders" element={<OrderManagement />} />
               <Route path="farmers-shop" element={<AdminFarmersShop />} />
+              <Route path="kpis" element={<SellerKPIs />} />
               <Route path="logistics" element={<LogisticsMap />} />
               <Route path="support" element={<AdminSupport />} />
               <Route path="settings" element={<div className="p-10 text-gray-500">Settings Coming Soon</div>} />
