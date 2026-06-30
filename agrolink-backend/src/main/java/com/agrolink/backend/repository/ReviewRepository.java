@@ -22,4 +22,10 @@ public interface ReviewRepository extends JpaRepository<Review, UUID> {
     java.util.Optional<Review> findByOrderIdAndReviewerIdAndProductId(UUID orderId, UUID reviewerId, UUID productId);
 
     List<Review> findByProductId(UUID productId);
+
+    List<Review> findByShopProductId(UUID shopProductId);
+
+    boolean existsByOrderIdAndReviewerIdAndShopProductId(UUID orderId, UUID reviewerId, UUID shopProductId);
+
+    java.util.Optional<Review> findByOrderIdAndReviewerIdAndShopProductId(UUID orderId, UUID reviewerId, UUID shopProductId);
 }

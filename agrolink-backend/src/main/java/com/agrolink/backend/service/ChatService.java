@@ -26,6 +26,9 @@ public class ChatService {
     private CustomOfferRepository customOfferRepository;
 
     @Autowired
+    private BuyerRequestRepository buyerRequestRepository;
+
+    @Autowired
     private ProfileRepository profileRepository;
 
     @Autowired
@@ -38,8 +41,8 @@ public class ChatService {
     private static final Pattern PHONE_REGEX = Pattern.compile(".*\\d{10}.*|.*(?:\\+?\\d{1,3})?[-. (]*\\d{3}[-. )]*\\d{3}[-. ]*\\d{4}.*");
     private static final Pattern EMAIL_REGEX = Pattern.compile(".*[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}.*");
 
-    public Conversation getOrCreateConversation(UUID farmerId, UUID buyerId) {
-        Optional<Conversation> existing = conversationRepository.findByFarmerIdAndBuyerId(farmerId, buyerId);
+    public Conversation getOrCreateConversation(UUID farmerId, UUID buyerId, UUID requestId) {
+        Optional<Conversation> existing = conversationRepository.findByFarmerIdAndBuyerIdAndRequestId(farmerId, buyerId, requestId);
         if (existing.isPresent()) {
             return existing.get();
         }
@@ -48,6 +51,9 @@ public class ChatService {
         Conversation conv = new Conversation();
         conv.setFarmer(profileRepository.findById(farmerId).orElseThrow(() -> new RuntimeException("Farmer not found")));
         conv.setBuyer(profileRepository.findById(buyerId).orElseThrow(() -> new RuntimeException("Buyer not found")));
+        if (requestId != null) {
+            conv.setRequest(buyerRequestRepository.findById(requestId).orElse(null));
+        }
         return conversationRepository.save(conv);
     }
 
@@ -129,6 +135,24 @@ public class ChatService {
                 order.setDeliveryLongitude(offer.getBuyer().getLongitude());
             }
 
+            // Sync addresses for Drivers visibility
+            if (offer.getSeller().getAddressLine1() != null) {
+                String sellerCity = offer.getSeller().getCity() != null ? offer.getSeller().getCity() : "";
+                order.setPickupAddress(offer.getSeller().getAddressLine1() + ", " + sellerCity);
+            }
+            if (offer.getBuyer().getAddressLine1() != null) {
+                order.setDeliveryAddress(offer.getBuyer().getAddressLine1());
+            }
+            order.setCity(offer.getBuyer().getCity());
+            order.setProvince(offer.getBuyer().getProvince());
+            order.setZipCode(offer.getBuyer().getZipCode());
+            order.setContactNumber(offer.getBuyer().getPhoneNumber());
+
+            // Normal order financial fields
+            order.setSubtotal(BigDecimal.valueOf(offer.getTotalPrice()));
+            order.setVatAmount(BigDecimal.ZERO);
+            order.setPaymentMethod("card");
+
             // Create a single order item representing the custom offer
             OrderItem item = new OrderItem();
             item.setOrder(order);
@@ -166,5 +190,10 @@ public class ChatService {
 
     public CustomOffer getCustomOffer(UUID offerId) {
         return customOfferRepository.findById(offerId).orElseThrow();
+    }
+
+    @Transactional
+    public void markMessagesAsRead(UUID conversationId, UUID userId) {
+        chatMessageRepository.markAsReadByConversationAndUser(conversationId, userId);
     }
 }

@@ -31,10 +31,10 @@ export default function FarmerRequests() {
                 const lsr = profile.lateShipmentRate || 0;
                 const cancel = profile.preFulfillmentCancellationRate || 0;
 
-                const topSellerStatus = ws >= 0.5 && odr <= 1.0 && lsr <= 4.0 && cancel <= 2.5;
-                setIsTopSeller(topSellerStatus);
+                const topSellerStatus = true; // Requested by user to always show
+                setIsTopSeller(true);
 
-                if (topSellerStatus) {
+                if (true) {
                     if (activeTab === 'notifications') {
                         const notifResponse = await fetch(`/api/notifications/${user.id}`);
                         const notifications = await notifResponse.json();
@@ -88,7 +88,8 @@ export default function FarmerRequests() {
             // First create or get conversation
             const payload = {
                 farmerId: user.id, // we are the farmer
-                buyerId: selectedRequest.buyer.id
+                buyerId: selectedRequest.buyer.id,
+                requestId: selectedRequest.id
             };
             const response = await fetch('/api/chat/conversations', {
                 method: 'POST',
@@ -104,6 +105,28 @@ export default function FarmerRequests() {
         } catch (error) {
             console.error("Error creating chat:", error);
             alert("Could not start chat.");
+        } finally {
+            setDetailsLoading(false);
+        }
+    };
+
+    const handleAcceptRequest = async () => {
+        if (!selectedRequest || !user) return;
+        setDetailsLoading(true);
+        try {
+            const response = await fetch(`/api/requests/${selectedRequest.id}/accept/${user.id}`, {
+                method: 'POST'
+            });
+            if (response.ok) {
+                alert('Request accepted successfully! Check your Orders tab.');
+                closeDetails();
+                fetchInitialData();
+            } else {
+                alert('Failed to accept request');
+            }
+        } catch (error) {
+            console.error('Error accepting request', error);
+            alert('Error accepting request');
         } finally {
             setDetailsLoading(false);
         }
@@ -276,8 +299,9 @@ export default function FarmerRequests() {
                                 Negotiate in Chat
                             </button>
                             <button
-                                onClick={() => alert('Direct accept coming soon')}
-                                className="px-5 py-2.5 bg-green-600 text-white font-medium hover:bg-green-700 rounded-xl shadow-lg shadow-green-200 transition-colors"
+                                onClick={handleAcceptRequest}
+                                disabled={detailsLoading}
+                                className="px-5 py-2.5 bg-green-600 text-white font-medium hover:bg-green-700 rounded-xl shadow-lg shadow-green-200 transition-colors disabled:opacity-50"
                             >
                                 Accept Request
                             </button>

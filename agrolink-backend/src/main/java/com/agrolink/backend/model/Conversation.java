@@ -20,6 +20,10 @@ public class Conversation {
     @JoinColumn(name = "buyer_id")
     private Profile buyer;
 
+    @ManyToOne
+    @JoinColumn(name = "request_id")
+    private BuyerRequest request;
+
     private LocalDateTime createdAt = LocalDateTime.now();
     private LocalDateTime updatedAt = LocalDateTime.now();
 
@@ -31,6 +35,9 @@ public class Conversation {
     
     public Profile getBuyer() { return buyer; }
     public void setBuyer(Profile buyer) { this.buyer = buyer; }
+    
+    public BuyerRequest getRequest() { return request; }
+    public void setRequest(BuyerRequest request) { this.request = request; }
     
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

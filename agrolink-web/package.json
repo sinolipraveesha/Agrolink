@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@stomp/stompjs": "^7.3.0",
     "@supabase/supabase-js": "^2.93.2",
     "axios": "^1.13.4",
@@ -17,6 +18,8 @@
     "leaflet-routing-machine": "^3.2.12",
     "leaflet.smooth_marker_bouncing": "^3.1.1",
     "lucide-react": "^0.563.0",
+    "node-fetch": "^3.3.2",
+    "pg": "^8.20.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-leaflet": "^5.0.0",

@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { supabase } from './lib/supabaseClient';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -11,6 +12,8 @@ import MyProducts from './pages/farmer/MyProducts';
 import FarmerOrders from './pages/farmer/FarmerOrders';
 import FarmerRequests from './pages/farmer/FarmerRequests';
 import FarmerWallet from './pages/farmer/FarmerWallet';
+import MarketInsights from './pages/farmer/MarketInsights';
+import Profile from './pages/farmer/Profile';
 // Support Pages
 import FarmerSupport from './pages/farmer/FarmerSupport';
 import DriverSupport from './pages/driver/DriverSupport';
@@ -20,6 +23,7 @@ import AdminLayout from './components/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminDriverRegistration from './pages/admin/AdminDriverRegistration';
 import UserVerification from './pages/admin/UserVerification';
+import UserManagement from './pages/admin/UserManagement';
 import ProductReview from './pages/admin/ProductReview';
 import OrderManagement from './pages/admin/OrderManagement';
 import AdminFarmersShop from './pages/admin/AdminFarmersShop';
@@ -28,6 +32,8 @@ import SellerKPIs from './pages/admin/SellerKPIs';
 
 import SupplierLayout from './components/supplier/SupplierLayout';
 import SupplierDashboard from './pages/supplier/SupplierDashboard';
+import SupplierOverview from './pages/supplier/SupplierOverview';
+import SupplierOrders from './pages/supplier/SupplierOrders';
 
 import DriverLayout from './components/driver/DriverLayout';
 import DriverDashboard from './pages/driver/DriverDashboard';
@@ -46,12 +52,63 @@ import Marketplace from './pages/marketplace/Marketplace';
 import ChatApp from './pages/chat/ChatApp';
 import ChatInbox from './pages/chat/ChatInbox';
 
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+
+const DynamicTitle = () => {
+  const { user } = useAuth();
+  const [role, setRole] = React.useState(null);
+  
+  React.useEffect(() => {
+    const fetchRole = async () => {
+      if (user) {
+        // 1. Try metadata first
+        let userRole = user.user_metadata?.role;
+        
+        // 2. If not in metadata, fetch from profiles table
+        if (!userRole) {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+          
+          if (!error && data) {
+            userRole = data.role;
+          }
+        }
+        setRole(userRole);
+      } else {
+        setRole(null);
+      }
+    };
+    
+    fetchRole();
+  }, [user]);
+
+  React.useEffect(() => {
+    if (role) {
+      const roleMap = {
+        'farmer': 'Farmer',
+        'admin': 'Admin',
+        'supplier': 'Supplier',
+        'driver': 'Driver',
+        'buyer': 'Buyer'
+      };
+      const titleRole = roleMap[role.toLowerCase()] || role;
+      document.title = `AgroLink | ${titleRole}`;
+    } else {
+      document.title = "AgroLink";
+    }
+  }, [role]);
+  
+  return null;
+};
 
 function App() {
   return (
     <AuthProvider>
+      <DynamicTitle />
       <CartProvider>
         <Router>
           <Routes>
@@ -82,11 +139,10 @@ function App() {
               <Route path="requests" element={<FarmerRequests />} />
               <Route path="support" element={<FarmerSupport />} />
               <Route path="products" element={<MyProducts />} />
+              <Route path="purchases" element={<MyOrders />} />
               <Route path="wallet" element={<FarmerWallet />} />
-              <Route path="transport" element={<div className="p-10">Transport Page Coming Soon</div>} />
-              <Route path="profile" element={<div className="p-10">Profile Page Coming Soon</div>} />
-              <Route path="ai-advisor" element={<div className="p-10">AI Advisor Coming Soon</div>} />
-              <Route path="insights" element={<div className="p-10">Insights Coming Soon</div>} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="insights" element={<MarketInsights />} />
             </Route>
 
             {/* Driver Routes */}
@@ -97,13 +153,16 @@ function App() {
               <Route path="wallet" element={<DriverWallet />} />
               <Route path="vehicle" element={<VehicleProfile />} />
               <Route path="support" element={<DriverSupport />} />
+              <Route path="profile" element={<Profile />} />
             </Route>
 
             {/* Supplier Routes */}
             <Route path="/supplier" element={<SupplierLayout />}>
               <Route index element={<Navigate to="dashboard" replace />} />
-              <Route path="dashboard" element={<SupplierDashboard />} />
+              <Route path="dashboard" element={<SupplierOverview />} />
               <Route path="products" element={<SupplierDashboard />} />
+              <Route path="orders" element={<SupplierOrders />} />
+              <Route path="profile" element={<Profile />} />
             </Route>
 
             {/* Admin Routes */}
@@ -112,6 +171,7 @@ function App() {
               <Route path="dashboard" element={<AdminDashboard />} />
               <Route path="register-driver" element={<AdminDriverRegistration />} />
               <Route path="verification" element={<UserVerification />} />
+              <Route path="users" element={<UserManagement />} />
               <Route path="products" element={<ProductReview />} />
               <Route path="orders" element={<OrderManagement />} />
               <Route path="farmers-shop" element={<AdminFarmersShop />} />

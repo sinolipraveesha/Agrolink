@@ -9,4 +9,5 @@ import java.util.UUID;
 public interface ConversationRepository extends JpaRepository<Conversation, UUID> {
     List<Conversation> findByFarmerIdOrBuyerId(UUID farmerId, UUID buyerId);
     Optional<Conversation> findByFarmerIdAndBuyerId(UUID farmerId, UUID buyerId);
+    Optional<Conversation> findByFarmerIdAndBuyerIdAndRequestId(UUID farmerId, UUID buyerId, UUID requestId);
 }

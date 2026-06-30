@@ -23,7 +23,9 @@ public class FarmerShopProductController {
 
     @GetMapping
     public List<FarmerShopProduct> getAllProducts() {
-        return service.getAllProducts();
+        List<FarmerShopProduct> products = service.getAllProducts();
+        System.out.println("DEBUG: Found " + products.size() + " products in farmer_shop_products table");
+        return products;
     }
 
     @GetMapping("/{id}")
@@ -39,5 +41,10 @@ public class FarmerShopProductController {
     @PutMapping("/{id}")
     public FarmerShopProduct updateProduct(@PathVariable UUID id, @RequestBody FarmerShopProduct product) {
         return service.updateProduct(id, product);
+    }
+
+    @GetMapping("/seller/{sellerId}")
+    public List<FarmerShopProduct> getProductsBySeller(@PathVariable UUID sellerId) {
+        return service.getProductsBySeller(sellerId);
     }
 }

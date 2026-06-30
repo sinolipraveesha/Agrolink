@@ -13,27 +13,47 @@ import java.util.List;
 
 @SpringBootApplication
 @org.springframework.scheduling.annotation.EnableScheduling
+@org.springframework.scheduling.annotation.EnableAsync
 public class AgrolinkBackendApplication {
 
 	@Bean
-	public CommandLineRunner run(CategoryRepository categoryRepository) {
+	public CommandLineRunner run(CategoryRepository categoryRepository, org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
 		return args -> {
 			System.out.println("Checking for legacy categories...");
 			List<Category> categories = categoryRepository.findAll();
 			for (Category category : categories) {
-				System.out.println("Category: " + category.getName() + ", Type: '" + category.getType() + "'");
-
-				if (List.of("Vegetables", "Fruits", "Spices", "Grains").contains(category.getName())) {
+				String name = category.getName();
+				if (name.contains("Vegetables") || name.contains("Fruits") || name.contains("Spices") || name.contains("Grains")) {
 					if (!"MARKETPLACE".equals(category.getType())) {
 						category.setType("MARKETPLACE");
 						categoryRepository.save(category);
-						System.out.println("Correction: Moved " + category.getName() + " to MARKETPLACE");
+						System.out.println("Correction: Moved " + name + " to MARKETPLACE");
 					}
-				} else if (category.getType() == null || category.getType().isEmpty()
-						|| (!"MARKETPLACE".equals(category.getType()) && !"FARMERS_SHOP".equals(category.getType()))) {
-					category.setType("FARMERS_SHOP");
-					categoryRepository.save(category);
-					System.out.println("Updated legacy category: " + category.getName() + " to FARMERS_SHOP");
+				}
+			}
+
+			// Ensure FARMERS_SHOP categories exist
+			List<String> shopCategories = List.of(
+				"Fertilizers / පොහොර", 
+				"Tools & Equipment / උපකරණ", 
+				"Seeds / බීජ", 
+				"Agro Chemicals / කෘෂි රසායනික"
+			);
+			
+			// Fix sequence before inserting
+			try {
+				jdbcTemplate.execute("SELECT setval(pg_get_serial_sequence('categories', 'id'), coalesce(max(id),0) + 1, false) FROM categories");
+			} catch (Exception e) {
+				System.out.println("Could not update sequence: " + e.getMessage());
+			}
+
+			for (String catName : shopCategories) {
+				if (categories.stream().noneMatch(c -> c.getName().equals(catName))) {
+					Category newCat = new Category();
+					newCat.setName(catName);
+					newCat.setType("FARMERS_SHOP");
+					categoryRepository.save(newCat);
+					System.out.println("Added new FARMERS_SHOP category: " + catName);
 				}
 			}
 		};
@@ -57,6 +77,10 @@ public class AgrolinkBackendApplication {
 				stmt.execute("ALTER TABLE knowledge_entries ADD COLUMN IF NOT EXISTS corrected_at TIMESTAMP WITH TIME ZONE");
 				stmt.execute("ALTER TABLE knowledge_entries ADD COLUMN IF NOT EXISTS corrected_by_user_id UUID");
 				stmt.execute("ALTER TABLE knowledge_entries ADD COLUMN IF NOT EXISTS source_ticket_id UUID");
+				
+				// Fix categories sequence
+				stmt.execute("SELECT setval(pg_get_serial_sequence('categories', 'id'), coalesce(max(id),0) + 1, false) FROM categories");
+
 				System.out.println("Database fixes applied successfully!");
 			} catch (Exception e) {
 				System.out.println("Database fix failed: " + e.getMessage());
@@ -124,6 +148,51 @@ public class AgrolinkBackendApplication {
 			);
 			knowledgeRepository.saveAll(entries);
 			System.out.println("Knowledge base seeded with " + entries.size() + " entries.");
+		};
+	}
+
+	@Bean
+	public CommandLineRunner seedReplyTemplates(com.agrolink.backend.repository.ReviewReplyTemplateRepository templateRepository) {
+		return args -> {
+			if (templateRepository.count() > 0) {
+				System.out.println("Review reply templates already seeded, skipping.");
+				return;
+			}
+			System.out.println("Seeding review reply templates...");
+			
+			// GOOD templates
+			com.agrolink.backend.model.ReviewReplyTemplate good1 = new com.agrolink.backend.model.ReviewReplyTemplate();
+			good1.setSentiment("GOOD");
+			good1.setContent("Thank you for your wonderful review! We're so glad you're happy with your purchase. Hope to see you again soon!");
+			
+			com.agrolink.backend.model.ReviewReplyTemplate good2 = new com.agrolink.backend.model.ReviewReplyTemplate();
+			good2.setSentiment("GOOD");
+			good2.setContent("We really appreciate your support and kind words! It motivates us to keep providing high-quality products.");
+			
+			com.agrolink.backend.model.ReviewReplyTemplate good3 = new com.agrolink.backend.model.ReviewReplyTemplate();
+			good3.setSentiment("GOOD");
+			good3.setContent("Amazing! Thank you for choosing Agrolink. We're thrilled to have you as a customer.");
+
+			// BAD templates
+			com.agrolink.backend.model.ReviewReplyTemplate bad1 = new com.agrolink.backend.model.ReviewReplyTemplate();
+			bad1.setSentiment("BAD");
+			bad1.setContent("We're deeply sorry for your experience. This is not the standard we aim for. Please contact our support so we can make it right.");
+			
+			com.agrolink.backend.model.ReviewReplyTemplate bad2 = new com.agrolink.backend.model.ReviewReplyTemplate();
+			bad2.setSentiment("BAD");
+			bad2.setContent("Thank you for your honest feedback. We apologize for the inconvenience and will work hard to improve this aspect of our service.");
+			
+			com.agrolink.backend.model.ReviewReplyTemplate bad3 = new com.agrolink.backend.model.ReviewReplyTemplate();
+			bad3.setSentiment("BAD");
+			bad3.setContent("We value your feedback and are sorry we didn't meet your expectations. We're looking into what went wrong immediately.");
+
+			// NEUTRAL templates
+			com.agrolink.backend.model.ReviewReplyTemplate neutral1 = new com.agrolink.backend.model.ReviewReplyTemplate();
+			neutral1.setSentiment("NEUTRAL");
+			neutral1.setContent("Thank you for sharing your feedback with us. We're always looking for ways to improve.");
+
+			templateRepository.saveAll(java.util.List.of(good1, good2, good3, bad1, bad2, bad3, neutral1));
+			System.out.println("Review reply templates seeded.");
 		};
 	}
 }

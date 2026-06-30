@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bot, X, Send, User } from 'lucide-react';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export default function Chatbot({ isOpen, onClose }) {
     const [messages, setMessages] = useState([
@@ -19,6 +20,26 @@ export default function Chatbot({ isOpen, onClose }) {
         }
     }, [messages, isOpen]);
 
+    // Diagnostic check on mount
+    useEffect(() => {
+        const checkApiKey = async () => {
+            const key = import.meta.env.VITE_GEMINI_API_KEY;
+            if (!key) {
+                console.error("DEBUG: VITE_GEMINI_API_KEY is missing!");
+                return;
+            }
+            console.log("DEBUG: Key loaded (starts with):", key.substring(0, 8));
+            try {
+                const genAI = new GoogleGenerativeAI(key);
+                const list = await genAI.listModels();
+                console.log("DEBUG: Available models:", list.models.map(m => m.name));
+            } catch (err) {
+                console.error("DEBUG: API Key Diagnostic FAILED:", err.message);
+            }
+        };
+        if (isOpen) checkApiKey();
+    }, [isOpen]);
+
     const handleSend = async () => {
         if (!input.trim()) return;
 
@@ -28,51 +49,35 @@ export default function Chatbot({ isOpen, onClose }) {
         setIsLoading(true);
 
         try {
-            // Prepare conversation history for LM Studio (OpenAI format)
-            const openaiMessages = [
-                { role: "system", content: "You are a helpful AI assistant for the AgroLink platform." }
-            ];
+            const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY);
+            const model = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
+            
+            const history = messages
+                .filter((m, idx) => !(idx === 0 && m.sender === 'bot'))
+                .map(msg => ({
+                    role: msg.sender === 'bot' ? 'model' : 'user',
+                    parts: [{ text: msg.text }]
+                }));
 
-            const rawHistory = messages.filter((m, idx) => !(idx === 0 && m.sender === 'bot'));
-            rawHistory.push(userMessage);
-
-            for (const msg of rawHistory) {
-                openaiMessages.push({
-                    role: msg.sender === 'bot' ? 'assistant' : 'user',
-                    content: msg.text
-                });
-            }
-
-            const response = await fetch('http://localhost:1234/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    messages: openaiMessages,
-                    temperature: 0.7,
-                    max_tokens: 500,
-                }),
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                console.error("LM Studio API Error details:", errorData);
-                throw new Error(errorData.error?.message || 'Network response was not ok. Is LM Studio running on port 1234?');
-            }
-
-            const data = await response.json();
-            const botReply = data.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
+            const chat = model.startChat({ history });
+            const result = await chat.sendMessage(input);
+            const response = await result.response;
+            const botReply = response.text();
 
             setMessages((prev) => [...prev, { sender: 'bot', text: botReply }]);
         } catch (error) {
-            console.error('Error communicating with Gemini API:', error);
+            console.error('Gemini Error:', error);
+            
+            // Removed the fake Offline Mode so the user can see the exact API rejection reason
+
+
             setMessages((prev) => [...prev, {
                 sender: 'bot',
-                text: `Error: ${error.message}`
+                text: `API Error: ${error.message}. Please enable 'Generative Language API' in Google Cloud Console.`
             }]);
         } finally {
-            setIsLoading(false);
+            // Only set loading false if we didn't enter fallback
+            if (!isLoading) setIsLoading(false);
         }
     };
 

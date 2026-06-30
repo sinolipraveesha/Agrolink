@@ -27,6 +27,8 @@ public class ChatMessage {
 
     private UUID relatedOfferId;
 
+    private Boolean isRead = false;
+
     private LocalDateTime createdAt = LocalDateTime.now();
 
     public UUID getId() { return id; }
@@ -49,4 +51,7 @@ public class ChatMessage {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public Boolean isRead() { return isRead; }
+    public void setRead(Boolean read) { isRead = read; }
 }

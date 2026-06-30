@@ -8,4 +8,5 @@ import java.util.UUID;
 
 @Repository
 public interface FarmerShopProductRepository extends JpaRepository<FarmerShopProduct, UUID> {
+    java.util.List<FarmerShopProduct> findByAdminId(java.util.UUID adminId);
 }

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCart } from '../../context/CartContext';
 import { useNavigate } from 'react-router-dom';
-import { ShoppingBag, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
+import { ShoppingBag, ArrowLeft, Loader2, AlertCircle, CheckCircle2, ShoppingCart } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { useGeolocation } from '../../hooks/useGeolocation';
@@ -25,7 +25,7 @@ const Checkout = () => {
     });
 
     const [availableDistricts, setAvailableDistricts] = useState([]);
-
+    const [userRole, setUserRole] = useState(null);
     const [status, setStatus] = useState({ state: 'idle', message: '' });
     const { location: gpsLocation } = useGeolocation();
 
@@ -37,7 +37,19 @@ const Checkout = () => {
         if (cart.length === 0 && status.state !== 'success') {
             navigate('/cart');
         }
-    }, [cart, navigate, status.state]);
+
+        const fetchUserRole = async () => {
+            if (user?.id) {
+                try {
+                    const res = await axios.get(`/api/profiles/${user.id}`);
+                    setUserRole(res.data.role);
+                } catch (err) {
+                    console.error("Failed to fetch user role", err);
+                }
+            }
+        };
+        fetchUserRole();
+    }, [cart, navigate, status.state, user?.id]);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -99,7 +111,13 @@ const Checkout = () => {
             // Step 1: Save to Database
             let orderId, hashStr, merchantId, formattedAmountStr;
             try {
-                const response = await axios.post('/api/orders/checkout', payload);
+                // Determine if this is a Farmer Shop order or a regular crop order
+                const isFarmerShopOrder = cart.some(item => (item.adminId !== undefined && item.adminId !== null) || (item.sellerId !== undefined && item.sellerId !== null));
+                const endpoint = isFarmerShopOrder ? '/api/farmershop-orders/checkout' : '/api/orders/checkout';
+
+                console.log(`Routing order to: ${endpoint}`);
+                const response = await axios.post(endpoint, payload);
+                
                 if (response.data && response.data.length > 0) {
                     orderId = response.data[0].id;
                 } else {
@@ -110,7 +128,8 @@ const Checkout = () => {
                 if (backendError.message === "InvalidCartItems") {
                     setStatus({ state: 'error', message: 'The products in your cart have been deleted from the database! Please Clear Cart and add fresh products.' });
                 } else {
-                    setStatus({ state: 'error', message: 'Failed to save order in database. Check console.' });
+                    const serverMsg = backendError.response?.data?.error || backendError.response?.data?.message;
+                    setStatus({ state: 'error', message: serverMsg || 'Failed to save order in database. Check console.' });
                 }
                 return;
             }
@@ -182,7 +201,8 @@ const Checkout = () => {
 
                 clearCart();
                 setStatus({ state: 'success', message: 'Payment Successful!' });
-                window.location.href = '/my-orders';
+                // We don't auto-redirect anymore to show the success screen
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             };
 
             window.payhere.onDismissed = function onDismissed() {
@@ -204,7 +224,102 @@ const Checkout = () => {
         }
     };
 
+    const bypassPayment = async () => {
+        if (!user) return;
+        try {
+            setStatus({ state: 'loading', message: 'Bypassing Payment Gateway...' });
+            
+            // Step 1: Save Order
+            const payload = {
+                buyerId: user.id,
+                deliveryAddress: `${formData.address}, ${formData.city}, ${formData.province}, Sri Lanka`,
+                deliveryLatitude: gpsLocation?.lat,
+                deliveryLongitude: gpsLocation?.lng,
+                contactNumber: formData.phone,
+                city: formData.city,
+                province: formData.province,
+                zipCode: formData.zipCode,
+                paymentMethod: 'bypass',
+                items: cart.map(item => ({
+                    productId: item.id,
+                    quantity: item.quantity
+                }))
+            };
+
+            // Determine if this is a Farmer Shop order or a regular crop order
+            const isFarmerShopOrder = cart.some(item => (item.adminId !== undefined && item.adminId !== null) || (item.sellerId !== undefined && item.sellerId !== null));
+            const endpoint = isFarmerShopOrder ? '/api/farmershop-orders/checkout' : '/api/orders/checkout';
+
+            console.log(`Bypass routing order to: ${endpoint}`);
+            const response = await axios.post(endpoint, payload);
+            const orderId = response.data[0].id;
+
+            // Step 2: Trigger Mock Webhook to mark as PAID
+            await axios.post('/api/payment/notify', null, {
+                params: {
+                    merchant_id: 'bypass',
+                    order_id: orderId,
+                    payhere_amount: grandTotal.toString(),
+                    payhere_currency: 'LKR',
+                    status_code: "2",
+                    md5sig: "mock" 
+                }
+            });
+
+            clearCart();
+            setStatus({ state: 'success', message: 'Order Successful (Bypassed)!' });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        } catch (error) {
+            console.error("Bypass failed:", error);
+            setStatus({ state: 'error', message: 'Bypass failed. Check console.' });
+        }
+    };
+
     if (cart.length === 0 && status.state !== 'success') return null;
+
+    if (status.state === 'success') {
+        const ordersPath = userRole === 'farmer' ? '/farmer/purchases' : '/my-orders';
+        
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+                <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-8 text-center border border-gray-100 animate-in fade-in zoom-in duration-500">
+                    <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <CheckCircle2 className="w-12 h-12 text-[#1a7935]" />
+                    </div>
+                    
+                    <h1 className="text-3xl font-black text-gray-900 mb-2">Order Placed!</h1>
+                    <p className="text-gray-500 mb-8">
+                        Your order has been successfully created. You can track its status in the {userRole === 'farmer' ? 'My Purchases' : 'My Orders'} section.
+                    </p>
+
+                    <div className="space-y-4">
+                        <button 
+                            onClick={() => navigate(ordersPath)}
+                            className="w-full py-4 bg-[#1a7935] text-white rounded-xl font-bold text-lg hover:bg-[#145d29] transition-all shadow-[0_4px_14px_rgba(26,121,53,0.3)] flex items-center justify-center gap-2"
+                        >
+                            <ShoppingBag className="w-5 h-5" />
+                            Go to My Orders
+                        </button>
+                        
+                        <button 
+                            onClick={() => navigate('/marketplace')}
+                            className="w-full py-4 bg-white text-gray-700 border border-gray-200 rounded-xl font-bold text-lg hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                        >
+                            <ShoppingCart className="w-5 h-5" />
+                            Continue Shopping
+                        </button>
+                    </div>
+
+                    <div className="mt-8 pt-6 border-t border-gray-100">
+                        <p className="text-sm text-gray-400 font-medium">
+                            Need help? <a href="/support" className="text-[#1a7935] hover:underline">Contact Support</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-white">
@@ -349,6 +464,15 @@ const Checkout = () => {
                                         Pay Rs. {grandTotal.toFixed(2)}
                                     </>
                                 )}
+                            </button>
+
+                            {/* Testing Bypass Button */}
+                            <button
+                                type="button"
+                                onClick={bypassPayment}
+                                className="w-full mt-4 h-10 border-2 border-dashed border-gray-300 text-gray-500 hover:border-[#1a7935] hover:text-[#1a7935] rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2"
+                            >
+                                Skip Payment (Testing Only)
                             </button>
                         </div>
                     </div>

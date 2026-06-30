@@ -2,12 +2,18 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
-import { Trash2, ArrowRight, ShoppingBag, ArrowLeft } from 'lucide-react';
+import { Trash2, ArrowRight, ShoppingBag, ArrowLeft, AlertCircle, Check } from 'lucide-react';
 
 const Cart = () => {
     const { cart, removeFromCart, updateQuantity, getCartTotal, clearCart } = useCart();
     const { user } = useAuth();
     const navigate = useNavigate();
+    const [toast, setToast] = React.useState(null);
+
+    const showToast = (message, type = 'error') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 3000);
+    };
 
     if (cart.length === 0) {
         return (
@@ -51,27 +57,38 @@ const Cart = () => {
                                     )}
                                 </div>
 
-                                {/* Details */}
+                                 {/* Details */}
                                 <div className="flex-1">
                                     <h3 className="font-bold text-gray-800 text-lg">{item.name}</h3>
                                     <p className="text-sm text-[#1a7935] font-medium">Rs. {item.price} / {item.unit}</p>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase mt-1">Available: {item.stockQuantity} {item.unit}s</p>
                                 </div>
 
                                 {/* Quantity */}
                                 <div className="flex items-center bg-gray-50 rounded-lg border border-gray-200">
                                     <button
                                         onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                                        className="px-3 py-1 text-gray-500 hover:text-[#1a7935] font-bold"
+                                        className="px-3 py-1 text-gray-500 hover:text-[#1a7935] font-bold disabled:opacity-30"
+                                        disabled={item.quantity <= 1}
                                     >-</button>
                                     <input
                                         type="number"
                                         value={item.quantity}
-                                        readOnly
-                                        className="w-12 text-center bg-transparent text-sm font-bold text-gray-800 focus:outline-none"
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value);
+                                            if (!isNaN(val)) {
+                                                if (val > item.stockQuantity) {
+                                                    showToast(`Cannot exceed available stock (${item.stockQuantity})`, 'error');
+                                                }
+                                                updateQuantity(item.id, val);
+                                            }
+                                        }}
+                                        className="w-12 text-center bg-transparent text-sm font-bold text-gray-800 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                     />
                                     <button
                                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                        className="px-3 py-1 text-gray-500 hover:text-[#1a7935] font-bold"
+                                        className="px-3 py-1 text-gray-500 hover:text-[#1a7935] font-bold disabled:opacity-30"
+                                        disabled={item.quantity >= item.stockQuantity}
                                     >+</button>
                                 </div>
 
@@ -147,6 +164,22 @@ const Cart = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Toast Notification */}
+            {toast && (
+                <div className="fixed top-32 right-10 z-[99999] animate-toast pointer-events-none">
+                    <div className={`${toast.type === 'error' ? 'bg-red-600' : 'bg-[#1a7935]'} text-white px-6 py-3 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] flex items-center gap-3 border border-white/20 backdrop-blur-md`}>
+                        <div className="bg-white rounded-full p-1 animate-bounce shadow-sm">
+                            {toast.type === 'error' ? (
+                                <AlertCircle className="h-4 w-4 text-red-600 stroke-[3]" />
+                            ) : (
+                                <Check className="h-4 w-4 text-[#1a7935] stroke-[3]" />
+                            )}
+                        </div>
+                        <p className="font-bold text-sm tracking-wide drop-shadow-sm">{toast.message}</p>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

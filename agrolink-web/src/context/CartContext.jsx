@@ -17,14 +17,19 @@ export const CartProvider = ({ children }) => {
     const addToCart = (product) => {
         setCart(prevCart => {
             const existing = prevCart.find(item => item.id === product.id);
+            const stockLimit = product.stockQuantity || Infinity; // Get stock limit
+            
             if (existing) {
+                const newQuantity = Math.min(existing.quantity + (product.quantity || 1), stockLimit);
                 return prevCart.map(item =>
                     item.id === product.id
-                        ? { ...item, quantity: item.quantity + product.quantity }
+                        ? { ...item, quantity: newQuantity }
                         : item
                 );
             }
-            return [...prevCart, { ...product, quantity: product.quantity || 1 }];
+            
+            const initialQuantity = Math.min(product.quantity || 1, stockLimit);
+            return [...prevCart, { ...product, quantity: initialQuantity }];
         });
     };
 
@@ -33,11 +38,15 @@ export const CartProvider = ({ children }) => {
     };
 
     const updateQuantity = (productId, newQuantity) => {
-        if (newQuantity < 1) return;
         setCart(prevCart =>
-            prevCart.map(item =>
-                item.id === productId ? { ...item, quantity: newQuantity } : item
-            )
+            prevCart.map(item => {
+                if (item.id === productId) {
+                    const stockLimit = item.stockQuantity || Infinity;
+                    const validatedQuantity = Math.max(1, Math.min(newQuantity, stockLimit));
+                    return { ...item, quantity: validatedQuantity };
+                }
+                return item;
+            })
         );
     };
 

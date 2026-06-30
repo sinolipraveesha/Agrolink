@@ -52,6 +52,12 @@ public class Review {
     @Column(name = "flag_reason")
     private String flagReason;
 
+    @Column(columnDefinition = "TEXT", name = "seller_reply")
+    private String sellerReply;
+
+    @Column(name = "shop_product_id")
+    private UUID shopProductId;
+
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {
@@ -153,5 +159,21 @@ public class Review {
 
     public void setProduct(Product product) {
         this.product = product;
+    }
+
+    public String getSellerReply() {
+        return sellerReply;
+    }
+
+    public void setSellerReply(String sellerReply) {
+        this.sellerReply = sellerReply;
+    }
+
+    public UUID getShopProductId() {
+        return shopProductId;
+    }
+
+    public void setShopProductId(UUID shopProductId) {
+        this.shopProductId = shopProductId;
     }
 }

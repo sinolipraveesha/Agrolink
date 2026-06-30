@@ -27,8 +27,10 @@ public class ReviewController {
                 request.getReviewerId(),
                 request.getRevieweeId(),
                 request.getProductId(),
+                request.getShopProductId(),
                 request.getRating(),
-                request.getComment());
+                request.getComment(),
+                request.getSellerReply());
         return ResponseEntity.ok(review);
     }
 
@@ -42,6 +44,11 @@ public class ReviewController {
         return ResponseEntity.ok(reviewService.getReviewsForProduct(productId));
     }
 
+    @GetMapping("/shop-product/{shopProductId}")
+    public ResponseEntity<List<Review>> getReviewsForShopProduct(@PathVariable UUID shopProductId) {
+        return ResponseEntity.ok(reviewService.getReviewsForShopProduct(shopProductId));
+    }
+
     @PutMapping
     public ResponseEntity<Review> updateReview(@RequestBody ReviewRequest request) {
         Review review = reviewService.updateReview(
@@ -49,8 +56,10 @@ public class ReviewController {
                 request.getReviewerId(),
                 request.getRevieweeId(),
                 request.getProductId(),
+                request.getShopProductId(),
                 request.getRating(),
-                request.getComment());
+                request.getComment(),
+                request.getSellerReply());
         return ResponseEntity.ok(review);
     }
 
@@ -59,8 +68,17 @@ public class ReviewController {
             @RequestParam UUID orderId,
             @RequestParam UUID reviewerId,
             @RequestParam(required = false) UUID revieweeId,
-            @RequestParam(required = false) UUID productId) {
-        return ResponseEntity.ok(reviewService.getReview(orderId, reviewerId, revieweeId, productId));
+            @RequestParam(required = false) UUID productId,
+            @RequestParam(required = false) UUID shopProductId) {
+        return ResponseEntity.ok(reviewService.getReview(orderId, reviewerId, revieweeId, productId, shopProductId));
+    }
+
+    @DeleteMapping("/{reviewId}")
+    public ResponseEntity<Void> deleteReview(
+            @PathVariable UUID reviewId,
+            @RequestParam UUID reviewerId) {
+        reviewService.deleteReview(reviewId, reviewerId);
+        return ResponseEntity.ok().build();
     }
 
     public static class ReviewRequest {
@@ -70,6 +88,7 @@ public class ReviewController {
         private UUID productId;
         private Integer rating; // 1-5
         private String comment;
+        private String sellerReply;
 
         public UUID getOrderId() {
             return orderId;
@@ -111,12 +130,30 @@ public class ReviewController {
             this.comment = comment;
         }
 
+        public String getSellerReply() {
+            return sellerReply;
+        }
+
+        public void setSellerReply(String sellerReply) {
+            this.sellerReply = sellerReply;
+        }
+
         public UUID getProductId() {
             return productId;
         }
 
         public void setProductId(UUID productId) {
             this.productId = productId;
+        }
+
+        private UUID shopProductId;
+
+        public UUID getShopProductId() {
+            return shopProductId;
+        }
+
+        public void setShopProductId(UUID shopProductId) {
+            this.shopProductId = shopProductId;
         }
     }
 }

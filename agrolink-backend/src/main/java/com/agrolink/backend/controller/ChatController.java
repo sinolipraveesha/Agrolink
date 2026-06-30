@@ -37,7 +37,15 @@ public class ChatController {
     public ResponseEntity<Conversation> getOrCreateConversation(@RequestBody Map<String, String> payload) {
         UUID farmerId = UUID.fromString(payload.get("farmerId"));
         UUID buyerId = UUID.fromString(payload.get("buyerId"));
-        return ResponseEntity.ok(chatService.getOrCreateConversation(farmerId, buyerId));
+        UUID requestId = payload.containsKey("requestId") && payload.get("requestId") != null ? UUID.fromString(payload.get("requestId")) : null;
+        return ResponseEntity.ok(chatService.getOrCreateConversation(farmerId, buyerId, requestId));
+    }
+
+    @GetMapping("/conversations/{id}")
+    public ResponseEntity<Conversation> getConversationById(@PathVariable UUID id) {
+        return conversationRepository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/conversations/user/{userId}")
@@ -48,6 +56,21 @@ public class ChatController {
     @GetMapping("/conversations/{conversationId}/messages")
     public ResponseEntity<List<ChatMessage>> getConversationHistory(@PathVariable UUID conversationId) {
         return ResponseEntity.ok(chatService.getConversationHistory(conversationId));
+    }
+
+    @PostMapping("/conversations/{conversationId}/read")
+    public ResponseEntity<Void> markAsRead(@PathVariable UUID conversationId, @RequestParam UUID userId) {
+        chatService.markMessagesAsRead(conversationId, userId);
+        
+        // Broadcast a system message so the sender knows their messages were read
+        MessagePayload payload = new MessagePayload();
+        payload.setConversationId(conversationId.toString());
+        payload.setSenderId(userId.toString());
+        payload.setType("READ_RECEIPT");
+        
+        messagingTemplate.convertAndSend("/topic/conversation." + conversationId, payload);
+        
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/conversations/{conversationId}/messages")
@@ -116,6 +139,12 @@ public class ChatController {
         // Technically this should be after Payment Success webhook according to DSR,
         // but adding here for direct test flows if needed.
         CustomOffer offer = chatService.updateOfferStatus(offerId, "ACCEPTED");
+        return ResponseEntity.ok(offer);
+    }
+
+    @PostMapping("/offers/{offerId}/decline")
+    public ResponseEntity<CustomOffer> declineOffer(@PathVariable UUID offerId) {
+        CustomOffer offer = chatService.updateOfferStatus(offerId, "DECLINED");
         return ResponseEntity.ok(offer);
     }
 

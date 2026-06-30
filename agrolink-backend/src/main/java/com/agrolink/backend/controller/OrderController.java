@@ -47,12 +47,14 @@ public class OrderController {
     }
 
     @PostMapping("/checkout")
-    public ResponseEntity<List<Order>> checkout(@RequestBody com.agrolink.backend.dto.CheckoutRequest request) {
+    public ResponseEntity<?> checkout(@RequestBody com.agrolink.backend.dto.CheckoutRequest request) {
         try {
             List<Order> orders = orderService.placeOrder(request);
             return ResponseEntity.ok(orders);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            System.err.println("Checkout Error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(java.util.Collections.singletonMap("error", e.getMessage()));
         }
     }
 

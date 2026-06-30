@@ -21,6 +21,12 @@ public class OrderService {
     @Autowired
     private RankingService rankingService;
 
+    @Autowired
+    private NotificationService notificationService;
+
+    @Autowired
+    private EmailService emailService;
+
     public List<Order> getAllOrders() {
         return orderRepository.findAll();
     }
@@ -60,6 +66,15 @@ public class OrderService {
             // Detailed Status Tracking
             if (status == OrderStatus.shipped && oldStatus != OrderStatus.shipped) {
                 order.setDispatchedAt(java.time.LocalDateTime.now());
+                
+                // --- SEND EMAIL TO MONITORING MAIL ---
+                emailService.sendOrderConfirmationEmail(
+                    "agrolinkmail42@gmail.com",
+                    order.getId().toString(),
+                    "SHIPPED and is on its way to delivery",
+                    generateItemsHtml(order),
+                    String.format("%.2f", order.getTotalAmount())
+                );
             } else if (status == OrderStatus.delivered && oldStatus != OrderStatus.delivered) {
                 order.setDeliveredAt(java.time.LocalDateTime.now());
             } else if (status == OrderStatus.cancelled && oldStatus != OrderStatus.cancelled) {
@@ -81,6 +96,26 @@ public class OrderService {
                                 + farmer.getLatitude() + ", " + farmer.getLongitude());
                     } else {
                         System.out.println("⚠️ Farmer has no location to sync for Order " + id);
+                    }
+                    
+                    StringBuilder sb = new StringBuilder();
+                    if (farmer.getAddressLine1() != null && !farmer.getAddressLine1().isEmpty()) sb.append(farmer.getAddressLine1()).append(", ");
+                    if (farmer.getCity() != null && !farmer.getCity().isEmpty()) sb.append(farmer.getCity());
+                    String fullAddress = sb.toString();
+                    if (fullAddress.endsWith(", ")) fullAddress = fullAddress.substring(0, fullAddress.length() - 2);
+                    if (!fullAddress.isEmpty()) {
+                        order.setPickupAddress(fullAddress);
+                    }
+
+                    // --- SEND EMAIL TO BUYER ---
+                    if (order.getBuyer() != null && order.getBuyer().getEmail() != null) {
+                        emailService.sendOrderConfirmationEmail(
+                            order.getBuyer().getEmail(),
+                            order.getId().toString(),
+                            "ACCEPTED by the farmer",
+                            generateItemsHtml(order),
+                            String.format("%.2f", order.getTotalAmount())
+                        );
                     }
                 }
             }
@@ -117,6 +152,18 @@ public class OrderService {
                 order.setPickupLatitude(lat);
                 order.setPickupLongitude(lon);
             }
+            
+            // --- SEND EMAIL TO BUYER ---
+            if (order.getBuyer() != null && order.getBuyer().getEmail() != null) {
+                emailService.sendOrderConfirmationEmail(
+                    order.getBuyer().getEmail(),
+                    order.getId().toString(),
+                    "ACCEPTED by the farmer",
+                    generateItemsHtml(order),
+                    String.format("%.2f", order.getTotalAmount())
+                );
+            }
+            
             return orderRepository.save(order);
         }).orElse(null);
     }
@@ -187,8 +234,12 @@ public class OrderService {
         }
 
         // 3. Create Order per Farmer
+        if (itemsByFarmer.isEmpty()) {
+            throw new RuntimeException("No valid products were found in your cart. They might have been removed by the seller.");
+        }
+
         com.agrolink.backend.model.Profile buyer = profileRepository.findById(request.getBuyerId())
-                .orElseThrow(() -> new RuntimeException("Buyer not found"));
+                .orElseThrow(() -> new RuntimeException("Your buyer profile was not found in our database. Please try logging out and back in."));
 
         for (Map.Entry<UUID, List<com.agrolink.backend.dto.CheckoutRequest.CheckoutItem>> entry : itemsByFarmer.entrySet()) {
             UUID sellerId = entry.getKey();
@@ -212,6 +263,14 @@ public class OrderService {
                 if (seller.getLatitude() != null && seller.getLongitude() != null) {
                     order.setPickupLatitude(seller.getLatitude());
                     order.setPickupLongitude(seller.getLongitude());
+                }
+                StringBuilder sb = new StringBuilder();
+                if (seller.getAddressLine1() != null && !seller.getAddressLine1().isEmpty()) sb.append(seller.getAddressLine1()).append(", ");
+                if (seller.getCity() != null && !seller.getCity().isEmpty()) sb.append(seller.getCity());
+                String fullAddress = sb.toString();
+                if (fullAddress.endsWith(", ")) fullAddress = fullAddress.substring(0, fullAddress.length() - 2);
+                if (!fullAddress.isEmpty()) {
+                    order.setPickupAddress(fullAddress);
                 }
             }
 
@@ -267,6 +326,34 @@ public class OrderService {
             System.out.println("✅ Order created: " + savedOrder.getId() + " | Subtotal: " + subtotal + " | VAT: " + vatAmount + " | Total: " + totalAmount);
         }
 
+        // --- TRIGGER NOTIFICATIONS (Section 8.1 DSR) ---
+        try {
+            for (Order order : createdOrders) {
+                if (order.getFarmer() != null) {
+                    notificationService.createNotification(
+                        order.getFarmer().getId(),
+                        "New Order Received",
+                        "You have received a new order #" + order.getId().toString().substring(0, 8),
+                        "NEW_ORDER_FARMER",
+                        order.getId()
+                    );
+                    System.out.println("🔔 Notification sent to farmer: " + order.getFarmer().getId());
+                }
+
+                // --- SEND EMAIL NOTIFICATION FOR NEW ORDER ---
+                emailService.sendOrderConfirmationEmail(
+                    "agrolinkmail42@gmail.com", 
+                    order.getId().toString(),
+                    "PLACED and is awaiting farmer acceptance",
+                    generateItemsHtml(order),
+                    String.format("%.2f", order.getTotalAmount())
+                );
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Warning: Could not send order notification: " + e.getMessage());
+        }
+        // -----------------------------------------------
+
         return createdOrders;
     }
 
@@ -291,11 +378,49 @@ public class OrderService {
                     order.setPickupLatitude(latestLat);
                     order.setPickupLongitude(latestLng);
                 }
+                
+                StringBuilder sb = new StringBuilder();
+                if (order.getFarmer().getAddressLine1() != null && !order.getFarmer().getAddressLine1().isEmpty()) sb.append(order.getFarmer().getAddressLine1()).append(", ");
+                if (order.getFarmer().getCity() != null && !order.getFarmer().getCity().isEmpty()) sb.append(order.getFarmer().getCity());
+                String fullAddress = sb.toString();
+                if (fullAddress.endsWith(", ")) fullAddress = fullAddress.substring(0, fullAddress.length() - 2);
+                if (!fullAddress.isEmpty()) {
+                    order.setPickupAddress(fullAddress);
+                }
             }
 
             order.setStatus(OrderStatus.ready_to_ship); // Driver assigned
             return orderRepository.save(order);
         }).orElseThrow(() -> new RuntimeException("Order not found"));
+    }
+
+    private String generateItemsHtml(Order order) {
+        StringBuilder sb = new StringBuilder();
+        if (order.getItems() != null) {
+            for (com.agrolink.backend.model.OrderItem item : order.getItems()) {
+                String name = item.getProduct() != null ? item.getProduct().getName() : item.getCustomItemName();
+                if (name == null) name = "Agricultural Product";
+                
+                String imgUrl = (item.getProduct() != null && item.getProduct().getImageUrl() != null) 
+                                ? item.getProduct().getImageUrl() 
+                                : "https://via.placeholder.com/60";
+
+                sb.append("<tr>")
+                  .append("<td style='padding: 10px 0; border-bottom: 1px solid #eee; width: 70px;'>")
+                  .append("<img src='").append(imgUrl).append("' style='width: 60px; height: 60px; border-radius: 5px; object-fit: cover;'>")
+                  .append("</td>")
+                  .append("<td style='padding: 10px 0; border-bottom: 1px solid #eee;'>")
+                  .append("<span style='font-weight: bold; display: block;'>").append(name).append("</span>")
+                  .append("<span style='font-size: 12px; color: #888;'>Price per unit: Rs. ").append(String.format("%.2f", item.getPriceAtTime())).append("</span>")
+                  .append("</td>")
+                  .append("<td style='padding: 10px 0; border-bottom: 1px solid #eee; text-align: right;'>")
+                  .append("<div style='font-weight: bold;'>Rs. ").append(String.format("%.2f", item.getPriceAtTime().multiply(item.getQuantity()))).append("</div>")
+                  .append("<div style='font-size: 12px; color: #1a7935;'>Qty: ").append(item.getQuantity()).append("</div>")
+                  .append("</td>")
+                  .append("</tr>");
+            }
+        }
+        return sb.toString();
     }
 
 }

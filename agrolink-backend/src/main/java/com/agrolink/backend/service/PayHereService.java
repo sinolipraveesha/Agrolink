@@ -2,7 +2,9 @@ package com.agrolink.backend.service;
 
 import com.agrolink.backend.util.PayHereUtility;
 import com.agrolink.backend.model.Order;
+import com.agrolink.backend.model.FarmershopOrder;
 import com.agrolink.backend.repository.OrderRepository;
+import com.agrolink.backend.repository.FarmershopOrderRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -24,11 +26,19 @@ public class PayHereService {
     @Autowired
     private OrderRepository orderRepository;
 
-    public Map<String, String> generateHash(UUID orderId) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+    @Autowired
+    private FarmershopOrderRepository farmershopOrderRepository;
 
-        double amount = order.getTotalAmount().doubleValue();
+    public Map<String, String> generateHash(UUID orderId) {
+        double amount;
+        Order order = orderRepository.findById(orderId).orElse(null);
+        if (order != null) {
+            amount = order.getTotalAmount().doubleValue();
+        } else {
+            FarmershopOrder shopOrder = farmershopOrderRepository.findById(orderId)
+                    .orElseThrow(() -> new RuntimeException("Order not found in either repository"));
+            amount = shopOrder.getTotalAmount().doubleValue();
+        }
         String currency = "LKR"; // Assuming LKR for now
 
         String hash = PayHereUtility.generateHash(merchantId, orderId.toString(), amount, currency, merchantSecret);

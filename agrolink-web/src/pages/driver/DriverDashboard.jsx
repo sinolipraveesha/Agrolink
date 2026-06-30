@@ -156,12 +156,12 @@ export default function DriverDashboard() {
                     let py = o.pickupLongitude || (o.farmer ? o.farmer.longitude : null);
                     let dx = o.deliveryLatitude || (o.buyer ? o.buyer.latitude : null);
                     let dy = o.deliveryLongitude || (o.buyer ? o.buyer.longitude : null);
-                    
+
                     let dist = 0;
                     if (px && py && dx && dy) {
                         dist = calculateDistance(px, py, dx, dy);
                     }
-                    
+
                     const hireFee = dist > 0 ? Math.round(250 + (dist * 120)) : 450;
 
                     return {
@@ -771,10 +771,10 @@ export default function DriverDashboard() {
 
                             {jobStatus === 'ready_to_ship' && (
                                 <div className="space-y-2">
-                                    <button onClick={handleConfirmPickup} disabled={!isNearPickup} className={`w-full py-4 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all flex flex-col items-center justify-center gap-1 ${isNearPickup ? 'bg-[#1a7935] text-white shadow-lg' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>
-                                        <span>{isNearPickup ? 'Verify Pickup' : 'Heading to Pickup'}</span>
+                                    <button onClick={handleConfirmPickup} className={`w-full py-4 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all flex flex-col items-center justify-center gap-1 bg-[#1a7935] text-white shadow-lg active:scale-95`}>
+                                        <span>Confirm Pickup</span>
                                         {!isNearPickup && pickupDistance && (
-                                            <span className="text-[8px] opacity-60">{(pickupDistance * 1000).toFixed(0)}m remaining</span>
+                                            <span className="text-[8px] opacity-80">{(pickupDistance * 1000).toFixed(0)}m away</span>
                                         )}
                                     </button>
                                     <button onClick={handleCancelJob} disabled={isCancelling} className="w-full py-3 bg-red-50 text-red-500 rounded-xl font-bold uppercase tracking-widest text-[9px] hover:bg-red-100 transition-colors disabled:opacity-50">
@@ -785,10 +785,10 @@ export default function DriverDashboard() {
 
                             {jobStatus === 'shipped' && (
                                 <div className="space-y-2">
-                                    <button onClick={handleConfirmDelivery} disabled={!isNearDropoff} className={`w-full py-4 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all flex flex-col items-center justify-center gap-1 ${isNearDropoff ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>
-                                        <span>{isNearDropoff ? 'Complete Trip' : 'Heading to Buyer'}</span>
+                                    <button onClick={handleConfirmDelivery} className={`w-full py-4 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-all flex flex-col items-center justify-center gap-1 bg-blue-600 text-white shadow-lg active:scale-95`}>
+                                        <span>Complete Trip</span>
                                         {!isNearDropoff && dropoffDistance && (
-                                            <span className="text-[8px] opacity-60">{(dropoffDistance * 1000).toFixed(0)}m remaining</span>
+                                            <span className="text-[8px] opacity-80">{(dropoffDistance * 1000).toFixed(0)}m away</span>
                                         )}
                                     </button>
                                 </div>
@@ -828,7 +828,7 @@ export default function DriverDashboard() {
                                                     <span className="text-lg font-black text-[#1a7935]">Rs.{load.hireFee}</span>
                                                 </div>
                                             </div>
-                                            
+
                                             <div className="flex flex-col gap-2 mt-3 p-3 bg-white rounded-xl border border-gray-100">
                                                 <div className="flex items-start gap-2">
                                                     <MapPin className="h-4 w-4 text-[#1a7935] shrink-0 mt-0.5" />

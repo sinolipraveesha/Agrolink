@@ -16,6 +16,21 @@ export default function Home() {
   const [userStatus, setUserStatus] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileError, setProfileError] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  const heroImages = [
+    "/12345frgg.png",
+    "https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&q=80&w=1920",
+    "https://images.unsplash.com/photo-1523348837708-15d4a09cfac2?auto=format&fit=crop&q=80&w=1920",
+    "https://images.unsplash.com/photo-1592982537447-7440770cbfc9?auto=format&fit=crop&q=80&w=1920"
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % heroImages.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
 
   const fetchProfile = () => {
     if (user?.id) {
@@ -63,7 +78,7 @@ export default function Home() {
   return (
     <div className="min-h-screen font-sans text-gray-800">
       {/* Navigation Bar */}
-      <nav className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-sm text-gray-800 z-50 shadow-sm border-b border-gray-100">
+      <nav className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md text-gray-800 z-50 shadow-sm border-b border-gray-100">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           {/* Logo */}
           <a href="/" className="flex items-center space-x-2">
@@ -74,9 +89,6 @@ export default function Home() {
           <div className="hidden md:flex items-center space-x-8 ml-8">
             <a href="/marketplace" className="hover:text-[#1a7935] transition-colors font-medium">Farmers Shop</a>
             <a href="#marketplace" className="hover:text-[#1a7935] transition-colors font-medium">Marketplace</a>
-            <a href="#" className="hover:text-[#1a7935] transition-colors font-medium">Categories</a>
-            <a href="#" className="hover:text-[#1a7935] transition-colors font-medium">About</a>
-            <a href="#" className="hover:text-[#1a7935] transition-colors font-medium">Contact Center</a>
           </div>
 
           {/* Search Bar */}
@@ -197,6 +209,13 @@ export default function Home() {
                                 <LayoutDashboard className="h-4 w-4 mr-2" />
                                 My Requests
                               </button>
+                              <button
+                                onClick={() => navigate('/inbox')}
+                                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-[#1a7935] flex items-center transition-colors"
+                              >
+                                <LayoutDashboard className="h-4 w-4 mr-2" />
+                                Inbox
+                              </button>
                             </>
                           )}
                         </>
@@ -262,9 +281,6 @@ export default function Home() {
               </div>
               <a href="/marketplace" className="block py-2 border-b border-gray-100 hover:text-[#1a7935]">Farmers Shop</a>
               <a href="#marketplace" className="block py-2 border-b border-gray-100 hover:text-[#1a7935]">Marketplace</a>
-              <a href="#" className="block py-2 border-b border-gray-100 hover:text-[#1a7935]">Categories</a>
-              <a href="#" className="block py-2 border-b border-gray-100 hover:text-[#1a7935]">About</a>
-              <a href="#" className="block py-2 hover:text-[#1a7935]">Contact Center</a>
 
               {user ? (
                 <>
@@ -327,6 +343,12 @@ export default function Home() {
                               >
                                 My Requests
                               </button>
+                              <button
+                                onClick={() => navigate('/inbox')}
+                                className="block w-full text-left py-2 hover:text-[#1a7935] font-medium transition-colors"
+                              >
+                                Inbox
+                              </button>
                             </>
                           )}
                         </>
@@ -348,48 +370,72 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center pt-20 overflow-hidden bg-[#f8fafc]">
-        {/* Background Image - Farmer & Paddy Field */}
+      <section className="relative min-h-[70vh] sm:min-h-[80vh] md:min-h-[90vh] flex items-center pt-20 overflow-hidden bg-[#f8fafc]">
+        {/* Background Image Slider */}
         <div className="absolute inset-0 z-0">
-          <img
-            src="/12345frgg.png"
-            alt="Sri Lankan Farmer in Paddy Field"
-            className="w-full h-full object-cover object-center"
-          />
+          {heroImages.map((img, index) => (
+            <div
+              key={index}
+              className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+                index === currentSlide ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              <img
+                src={img}
+                alt={`AgroLink Hero Slide ${index + 1}`}
+                className="w-full h-full object-cover object-center scale-105 animate-slow-zoom"
+              />
+            </div>
+          ))}
           {/* Heavy White Gradient Fade for Text Readability - Left to Right */}
-          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/70 to-transparent"></div>
+          <div className="absolute inset-0 bg-gradient-to-r from-white via-white/90 sm:via-white/75 to-transparent"></div>
           {/* Bottom soft fade */}
           <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-[#f8fafc] to-transparent"></div>
+          
+          {/* Slider Indicators */}
+          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 flex gap-2 z-20">
+            {heroImages.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentSlide(index)}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  index === currentSlide ? 'w-8 bg-[#1a7935]' : 'w-2 bg-gray-300'
+                }`}
+              />
+            ))}
+          </div>
         </div>
 
         {/* Content */}
-        <div className="relative z-10 container mx-auto px-4 mt-8">
-          <div className="max-w-3xl animate-fade-in-up pt-10">
+        <div className="relative z-10 container mx-auto px-4 sm:px-6 mt-4 sm:mt-8">
+          <div className="max-w-3xl animate-fade-in-up pt-6 sm:pt-10">
             {/* Badge */}
-            <div className="inline-block bg-white/90 backdrop-blur-md rounded-full px-4 py-1.5 mb-8 border border-green-100 shadow-sm">
-              <span className="text-[#1a7935] font-semibold text-sm tracking-wide">#1 Agriculture Platform in Sri Lanka</span>
+            <div className="inline-block bg-white/90 backdrop-blur-md rounded-full px-3 sm:px-4 py-1 sm:py-1.5 mb-4 sm:mb-8 border border-green-100 shadow-sm">
+              <span className="text-[#1a7935] font-semibold text-xs sm:text-sm tracking-wide">#1 Agriculture Platform in Sri Lanka</span>
             </div>
 
-            <h1 className="text-5xl md:text-7xl font-bold text-[#0f2815] mb-8 leading-[1.15] tracking-tight">
-              ඔබේ අස්වැන්නට <span className="text-[#1a7935]">හොඳම</span> <br />
-              <span className="text-[#1a7935]">මිලක්</span>, <br />
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold text-[#0f2815] mb-4 sm:mb-6 md:mb-8 leading-[1.15] tracking-tight">
+              ඔබේ අස්වැන්නට <span className="text-[#1a7935]">හොඳම</span>{' '}
+              <br className="hidden sm:block" />
+              <span className="text-[#1a7935]">මිලක්</span>,{' '}
+              <br className="hidden md:block" />
               ගොවිතැනට නව තාක්ෂණයක්.
             </h1>
 
-            <p className="text-lg md:text-xl text-gray-700 mb-10 max-w-2xl leading-relaxed font-medium bg-white/30 backdrop-blur-[1px] rounded-lg p-2 -ml-2">
+            <p className="text-base sm:text-lg md:text-xl text-gray-700 mb-6 sm:mb-8 md:mb-10 max-w-2xl leading-relaxed font-medium bg-white/30 backdrop-blur-[1px] rounded-lg p-2 -ml-2">
               ගොවීන්, ගැනුම්කරුවන් සහ ප්‍රවාහනය කරන්නන් එකම වේදිකාවකට ගෙන එන ශ්‍රී ලංකාවේ විශ්වාසවන්තම කෘෂිකාර්මික ජාලය. AgroLink සමඟ සම්බන්ධ වී ඔබේ ව්‍යාපාරය දියුණු කරගන්න.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 mb-12">
-              <a href="/register" className="bg-[#1a7935] text-white hover:bg-[#145d29] px-8 py-4 rounded-lg font-bold text-lg transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center justify-center">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-8 sm:mb-12">
+              <a href="/register" className="bg-[#1a7935] text-white hover:bg-[#145d29] px-6 sm:px-8 py-3 sm:py-4 rounded-lg font-bold text-base sm:text-lg transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center justify-center">
                 දැන්ම ආරම්භ කරන්න
               </a>
-              <button className="bg-white/80 border-2 border-[#1a7935] text-[#1a7935] hover:bg-[#1a7935] hover:text-white px-8 py-4 rounded-lg font-bold text-lg transition-all shadow-md hover:shadow-lg backdrop-blur-sm">
+              <button className="bg-white/80 border-2 border-[#1a7935] text-[#1a7935] hover:bg-[#1a7935] hover:text-white px-6 sm:px-8 py-3 sm:py-4 rounded-lg font-bold text-base sm:text-lg transition-all shadow-md hover:shadow-lg backdrop-blur-sm">
                 වැඩි විස්තර
               </button>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-12 text-sm font-semibold text-[#0f2815]">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-12 text-sm font-semibold text-[#0f2815]">
               <div className="flex items-center gap-2 bg-white/50 px-3 py-1 rounded-full backdrop-blur-sm">
                 <div className="w-2 h-2 rounded-full bg-[#1a7935]"></div>
                 විශ්වාසවන්ත සේවාව

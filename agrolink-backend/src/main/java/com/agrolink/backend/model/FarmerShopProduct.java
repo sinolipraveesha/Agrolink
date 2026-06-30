@@ -13,11 +13,11 @@ public class FarmerShopProduct {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
-    @Column(name = "admin_id")
+    @Column(name = "seller_id")
     private UUID adminId;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "admin_id", insertable = false, updatable = false)
+    @JoinColumn(name = "seller_id", insertable = false, updatable = false)
     private Profile admin;
 
     @Column(nullable = false)

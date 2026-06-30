@@ -64,6 +64,29 @@ public class ProfileController {
         return ResponseEntity.notFound().build();
     }
 
+    @GetMapping("/all")
+    public ResponseEntity<List<Profile>> getAllProfiles() {
+        return ResponseEntity.ok(profileService.getAllProfiles());
+    }
+
+    @PutMapping("/{id}/ban")
+    public ResponseEntity<Profile> banProfile(@PathVariable UUID id) {
+        Profile profile = profileService.banProfile(id);
+        if (profile != null) {
+            return ResponseEntity.ok(profile);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @PutMapping("/{id}/activate")
+    public ResponseEntity<Profile> activateProfile(@PathVariable UUID id) {
+        Profile profile = profileService.activateProfile(id);
+        if (profile != null) {
+            return ResponseEntity.ok(profile);
+        }
+        return ResponseEntity.notFound().build();
+    }
+
     @PutMapping("/{id}/submit-verification")
     public ResponseEntity<Profile> submitVerification(@PathVariable UUID id, @RequestBody Profile updatedProfile) {
         Profile profile = profileService.getProfile(id);
@@ -93,7 +116,21 @@ public class ProfileController {
                 profile.setLongitude(updatedProfile.getLongitude());
             if (updatedProfile.getFullName() != null)
                 profile.setFullName(updatedProfile.getFullName());
-            // Add other fields as needed
+            if (updatedProfile.getPhoneNumber() != null)
+                profile.setPhoneNumber(updatedProfile.getPhoneNumber());
+            if (updatedProfile.getAddressLine1() != null)
+                profile.setAddressLine1(updatedProfile.getAddressLine1());
+            if (updatedProfile.getAddressLine2() != null)
+                profile.setAddressLine2(updatedProfile.getAddressLine2());
+            if (updatedProfile.getCity() != null)
+                profile.setCity(updatedProfile.getCity());
+            if (updatedProfile.getProvince() != null)
+                profile.setProvince(updatedProfile.getProvince());
+            if (updatedProfile.getZipCode() != null)
+                profile.setZipCode(updatedProfile.getZipCode());
+            if (updatedProfile.getAvatarUrl() != null)
+                profile.setAvatarUrl(updatedProfile.getAvatarUrl());
+                
             return ResponseEntity.ok(profileService.createProfile(profile));
         }
         return ResponseEntity.notFound().build();

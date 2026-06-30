@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Filter, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
 
 export default function OrderManagement() {

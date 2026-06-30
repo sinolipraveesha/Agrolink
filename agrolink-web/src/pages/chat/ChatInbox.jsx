@@ -44,8 +44,12 @@ export default function ChatInbox() {
                                             {otherPerson?.fullName?.charAt(0) || 'U'}
                                         </div>
                                         <div>
-                                            <h3 className="font-bold text-lg">{otherPerson?.fullName || 'Unknown User'}</h3>
-                                            <p className="text-sm text-gray-500">Negotiation Chat</p>
+                                            <h3 className="font-bold text-lg">
+                                                {conv.request ? `${conv.request.category} Request` : 'Custom Negotiation'}
+                                            </h3>
+                                            <p className="text-sm text-gray-500">
+                                                with {otherPerson?.fullName || 'Unknown User'} {conv.request ? `- ${conv.request.quantity} ${conv.request.unit}` : ''}
+                                            </p>
                                         </div>
                                     </div>
                                     <ArrowRight className="text-gray-400" />

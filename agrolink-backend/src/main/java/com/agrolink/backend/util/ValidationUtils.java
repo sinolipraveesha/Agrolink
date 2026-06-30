@@ -5,7 +5,7 @@ import java.util.regex.Pattern;
 public class ValidationUtils {
 
     // NIC Regex: Support both legacy (9 digits + V/X) and modern (12 digits)
-    private static final String NIC_REGEX = "^(([5,6,7,8,9]{1})([0-9]{1})([0,1,2,3,5,6,7,8]{1})([0-9]{6})([v|V|x|X]))|(([1,2]{1})([0,9]{1})([0-9]{2})([0,1,2,3,5,6,7,8]{1})([0-9]{7}))$";
+    private static final String NIC_REGEX = "^([0-9]{9}[vVxX]|[0-9]{12})$";
     
     // Mobile Number Regex: Support 0, 94, +94 prefixes, followed by 7, operator prefix, and 7 digits
     private static final String MOBILE_REGEX = "^(?:0|94|\\+94)?7(0|1|2|4|5|6|7|8)\\d{7}$";

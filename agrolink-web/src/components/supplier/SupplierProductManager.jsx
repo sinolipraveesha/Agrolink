@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Plus, Edit2, Trash2, X, Save, Search, Image as ImageIcon, Upload, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 
-export default function SupplierProductManager() {
+export default function SupplierProductManager({ filter = 'all' }) {
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -12,6 +12,7 @@ export default function SupplierProductManager() {
     const [editingProduct, setEditingProduct] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [currentUserId, setCurrentUserId] = useState(null);
+    const [adjustmentInputs, setAdjustmentInputs] = useState({}); // { productId: value }
     const [formData, setFormData] = useState({
         name: '',
         description: '',
@@ -55,6 +56,45 @@ export default function SupplierProductManager() {
         }
     };
 
+    const handleStockChange = async (product, amount) => {
+        const adjustment = parseInt(adjustmentInputs[product.id] || 0);
+        if (isNaN(adjustment) || adjustment <= 0) {
+            alert("Please enter a valid positive number.");
+            return;
+        }
+
+        const currentStock = product.stockQuantity || 0;
+        const newStock = amount === 'add' ? currentStock + adjustment : currentStock - adjustment;
+
+        if (newStock < 0) {
+            alert("Stock cannot be negative.");
+            return;
+        }
+
+        try {
+            const payload = { ...product, stockQuantity: newStock };
+            if (!payload.category) payload.category = ""; // safety
+            await axios.put(`/api/farmer-shop-products/${product.id}`, payload);
+            setAdjustmentInputs(prev => ({ ...prev, [product.id]: '' }));
+            fetchData(currentUserId);
+        } catch (error) {
+            console.error("Failed to update stock", error);
+            alert("Failed to update stock.");
+        }
+    };
+
+    const markOutOfStock = async (product) => {
+        try {
+            const payload = { ...product, stockQuantity: 0 };
+            if (!payload.category) payload.category = "";
+            await axios.put(`/api/farmer-shop-products/${product.id}`, payload);
+            fetchData(currentUserId);
+        } catch (error) {
+            console.error("Failed to mark out of stock", error);
+            alert("Failed to mark out of stock.");
+        }
+    };
+
     const handleImageUpload = async (e) => {
         try {
             setUploading(true);
@@ -83,6 +123,13 @@ export default function SupplierProductManager() {
             alert('Error uploading image!');
         } finally {
             setUploading(false);
+        }
+    };
+
+    const handleNumberInput = (e) => {
+        // Prevent 'e', 'E', '+', '-' from being entered in number fields
+        if (['e', 'E', '+', '-'].includes(e.key)) {
+            e.preventDefault();
         }
     };
 
@@ -178,17 +225,29 @@ export default function SupplierProductManager() {
         }
     };
 
-    const filteredProducts = products.filter(p =>
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (p.category && p.category.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
+    const filteredProducts = products.filter(p => {
+        const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (p.category && p.category.toLowerCase().includes(searchTerm.toLowerCase()));
+        
+        if (filter === 'pending') {
+            return matchesSearch && (p.status === 'pending' || p.status === 'rejected');
+        }
+        if (filter === 'stock') {
+            return matchesSearch && (p.status === 'approved' || p.status === 'available');
+        }
+        return matchesSearch;
+    });
 
     if (loading) return <div className="text-center p-10"><div className="animate-spin h-8 w-8 border-4 border-b-[#1a7935] mx-auto rounded-full"></div></div>;
+
+    const isStockView = filter === 'stock';
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <h2 className="text-lg font-bold text-gray-800">My Supplier Products</h2>
+                <h2 className="text-lg font-bold text-gray-800">
+                    {isStockView ? 'Inventory & Stock Management' : 'My Supplier Products'}
+                </h2>
                 <div className="flex w-full md:w-auto space-x-2">
                     <div className="relative flex-1 md:w-64">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -200,13 +259,15 @@ export default function SupplierProductManager() {
                             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1a7935]"
                         />
                     </div>
-                    <button
-                        onClick={() => handleOpenModal()}
-                        className="flex items-center space-x-2 px-4 py-2 bg-[#1a7935] text-white rounded-lg hover:bg-[#145e29] whitespace-nowrap"
-                    >
-                        <Plus className="h-4 w-4" />
-                        <span>Add Product</span>
-                    </button>
+                    {!isStockView && (
+                        <button
+                            onClick={() => handleOpenModal()}
+                            className="flex items-center space-x-2 px-4 py-2 bg-[#1a7935] text-white rounded-lg hover:bg-[#145e29] whitespace-nowrap"
+                        >
+                            <Plus className="h-4 w-4" />
+                            <span>Add Product</span>
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -216,20 +277,29 @@ export default function SupplierProductManager() {
                         <tr className="bg-gray-50 border-b border-gray-100">
                             <th className="p-4 font-semibold text-gray-600">Product</th>
                             <th className="p-4 font-semibold text-gray-600">Category</th>
-                            <th className="p-4 font-semibold text-gray-600">Price</th>
-                            <th className="p-4 font-semibold text-gray-600">Stock</th>
-                            <th className="p-4 font-semibold text-gray-600">Status</th>
-                            <th className="p-4 font-semibold text-gray-600 text-right">Actions</th>
+                            {!isStockView && <th className="p-4 font-semibold text-gray-600">Price</th>}
+                            <th className="p-4 font-semibold text-gray-600">Current Stock</th>
+                            {isStockView ? (
+                                <>
+                                    <th className="p-4 font-semibold text-gray-600">Stock Adjustment</th>
+                                    <th className="p-4 font-semibold text-gray-600 text-right">Inventory Actions</th>
+                                </>
+                            ) : (
+                                <>
+                                    <th className="p-4 font-semibold text-gray-600">Status</th>
+                                    <th className="p-4 font-semibold text-gray-600 text-right">Actions</th>
+                                </>
+                            )}
                         </tr>
                     </thead>
                     <tbody>
                         {filteredProducts.length === 0 ? (
                             <tr>
-                                <td colSpan="6" className="p-8 text-center text-gray-500">No products found. Start adding products to supply.</td>
+                                <td colSpan="6" className="p-8 text-center text-gray-500">No products found.</td>
                             </tr>
                         ) : (
                             filteredProducts.map((product) => (
-                                <tr key={product.id} className="border-b border-gray-50 hover:bg-gray-50">
+                                <tr key={product.id} className={`border-b border-gray-50 hover:bg-gray-50 transition-colors ${(isStockView && (product.stockQuantity || 0) === 0) ? 'bg-red-50/30' : ''}`}>
                                     <td className="p-4">
                                         <div className="flex items-center space-x-3">
                                             <div className="h-10 w-10 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
@@ -247,27 +317,72 @@ export default function SupplierProductManager() {
                                         </div>
                                     </td>
                                     <td className="p-4 text-gray-600">{product.category}</td>
-                                    <td className="p-4 text-gray-600">LKR {product.price}</td>
-                                    <td className="p-4 text-gray-600">{product.stockQuantity || product.quantity} {product.unit || 'Units'}</td>
+                                    {!isStockView && <td className="p-4 text-gray-600">LKR {product.price}</td>}
                                     <td className="p-4">
-                                        {getStatusBadge(product.status)}
+                                        <span className={`font-bold ${(product.stockQuantity || 0) <= 5 ? 'text-red-600' : 'text-gray-800'}`}>
+                                            {product.stockQuantity || product.quantity}
+                                        </span>
+                                        <span className="text-xs text-gray-400 ml-1">{product.unit || 'Units'}</span>
                                     </td>
-                                    <td className="p-4 text-right">
-                                        <div className="flex justify-end space-x-2">
-                                            <button
-                                                onClick={() => handleOpenModal(product)}
-                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                                            >
-                                                <Edit2 className="h-4 w-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(product.id)}
-                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    </td>
+
+                                    {isStockView ? (
+                                        <>
+                                            <td className="p-4">
+                                                <div className="flex items-center gap-2">
+                                                    <input 
+                                                        type="number"
+                                                        placeholder="Qty"
+                                                        onKeyDown={handleNumberInput}
+                                                        value={adjustmentInputs[product.id] || ''}
+                                                        onChange={(e) => setAdjustmentInputs(prev => ({ ...prev, [product.id]: e.target.value }))}
+                                                        className="w-20 px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-[#1a7935] outline-none"
+                                                    />
+                                                    <button 
+                                                        onClick={() => handleStockChange(product, 'add')}
+                                                        className="px-3 py-1.5 bg-[#1a7935] text-white text-xs font-bold rounded-lg hover:bg-[#145e29] transition-colors"
+                                                    >
+                                                        Add
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleStockChange(product, 'remove')}
+                                                        className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-200 transition-colors"
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <td className="p-4 text-right">
+                                                <button 
+                                                    onClick={() => markOutOfStock(product)}
+                                                    className="px-4 py-1.5 border border-red-200 text-red-600 text-xs font-bold rounded-lg hover:bg-red-50 transition-colors"
+                                                >
+                                                    Mark Out of Stock
+                                                </button>
+                                            </td>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <td className="p-4">
+                                                {getStatusBadge(product.status)}
+                                            </td>
+                                            <td className="p-4 text-right">
+                                                <div className="flex justify-end space-x-2">
+                                                    <button
+                                                        onClick={() => handleOpenModal(product)}
+                                                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                                                    >
+                                                        <Edit2 className="h-4 w-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(product.id)}
+                                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </>
+                                    )}
                                 </tr>
                             ))
                         )}
@@ -296,11 +411,11 @@ export default function SupplierProductManager() {
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Price (LKR)</label>
-                                <input type="number" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1a7935]" required />
+                                <input type="number" onKeyDown={handleNumberInput} value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1a7935]" required />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
-                                <input type="number" value={formData.quantity} onChange={(e) => setFormData({ ...formData, quantity: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1a7935]" required />
+                                <input type="number" onKeyDown={handleNumberInput} value={formData.quantity} onChange={(e) => setFormData({ ...formData, quantity: e.target.value })} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1a7935]" required />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>

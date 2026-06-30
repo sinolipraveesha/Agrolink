@@ -104,6 +104,23 @@ public class SentimentAnalysisService {
     }
 
     /**
+     * Determines the sentiment based on text.
+     * Returns "GOOD", "BAD", or "NEUTRAL".
+     */
+    public String detectSentiment(String text) {
+        String priority = analyzePriority(text);
+        switch (priority) {
+            case "URGENT":
+            case "HIGH":
+                return "BAD";
+            case "LOW":
+                return "GOOD";
+            case "MEDIUM":
+            default:
+                return "NEUTRAL";
+        }
+    }
+    /**
      * Returns true if newPriority is strictly higher than currentPriority.
      */
     public boolean isEscalation(String currentPriority, String newPriority) {

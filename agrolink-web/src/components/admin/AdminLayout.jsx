@@ -32,6 +32,8 @@ export default function AdminLayout() {
         navigate('/');
     };
 
+
+
     const menuItems = [
         { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
         { path: '/admin/register-driver', label: 'Register Driver', icon: Truck },
@@ -43,18 +45,21 @@ export default function AdminLayout() {
         { path: '/admin/kpis', label: 'Seller Performance', icon: BarChart3 },
         { path: '/admin/logistics', label: 'Live Logistics Map', icon: Map },
         { path: '/admin/support', label: 'Support Tickets', icon: LifeBuoy },
-        { path: '/admin/settings', label: 'System Settings', icon: Settings },
+
     ];
 
     return (
-        <div className="min-h-screen bg-gray-100 flex">
+        <div className="h-screen bg-gray-100 flex overflow-hidden">
             {/* Sidebar */}
             <aside
-                className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#0f2815] text-white transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-                    } md:relative md:translate-x-0`}
+                className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#0f2815] text-white transform transition-transform duration-300 ease-in-out flex flex-col rounded-r-[40px] shadow-2xl ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                    } md:sticky md:top-0 md:h-screen md:translate-x-0`}
             >
                 <div className="flex items-center justify-between p-4 border-b border-[#1a4a26]">
-                    <div className="flex items-center space-x-2">
+                    <div 
+                        className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={() => navigate('/')}
+                    >
                         <ShieldAlert className="h-8 w-8 text-[#b0db3d]" />
                         <div className="flex flex-col">
                             <span className="text-xl font-bold tracking-tight">AgroLink</span>
@@ -66,7 +71,7 @@ export default function AdminLayout() {
                     </button>
                 </div>
 
-                <nav className="mt-8 px-4 space-y-1">
+                <nav className="mt-8 px-4 space-y-1 flex-1 overflow-y-auto custom-scrollbar pb-4">
                     {menuItems.map((item) => (
                         <button
                             key={item.path}
@@ -87,23 +92,23 @@ export default function AdminLayout() {
                         <MessageCircle className="h-5 w-5" />
                         <span className="font-medium text-sm">AI Assistant</span>
                     </button>
-                </nav>
 
-                <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-[#1a4a26]">
-                    <button
-                        onClick={handleLogout}
-                        className="w-full flex items-center space-x-3 px-4 py-3 text-red-300 hover:bg-red-900/20 hover:text-red-100 rounded-lg transition-colors"
-                    >
-                        <LogOut className="h-5 w-5" />
-                        <span>Log Out</span>
-                    </button>
-                </div>
+                    <div className="pt-4 mt-4 border-t border-[#1a4a26]">
+                        <button
+                            onClick={handleLogout}
+                            className="w-full flex items-center space-x-3 px-4 py-3 text-red-300 hover:bg-red-900/20 hover:text-red-100 rounded-lg transition-colors"
+                        >
+                            <LogOut className="h-5 w-5" />
+                            <span className="font-medium text-sm">Log Out</span>
+                        </button>
+                    </div>
+                </nav>
             </aside>
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
                 {/* Top Header for Mobile */}
-                <header className="bg-white shadow-sm md:hidden flex items-center p-4 z-40">
+                <header className="bg-white/80 backdrop-blur-md shadow-sm md:hidden flex items-center p-4 z-40 sticky top-0">
                     <button onClick={() => setSidebarOpen(true)} className="text-gray-600">
                         <Menu className="h-6 w-6" />
                     </button>

@@ -1,6 +1,10 @@
 package com.agrolink.backend.controller;
 
 import com.agrolink.backend.service.PayHereService;
+import com.agrolink.backend.model.Order;
+import com.agrolink.backend.model.FarmershopOrder;
+import com.agrolink.backend.repository.OrderRepository;
+import com.agrolink.backend.repository.FarmershopOrderRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +19,12 @@ public class PaymentController {
 
     @Autowired
     private PayHereService payHereService;
+
+    @Autowired
+    private OrderRepository orderRepository;
+
+    @Autowired
+    private FarmershopOrderRepository farmershopOrderRepository;
 
     @GetMapping("/hash/{orderId}")
     public ResponseEntity<Map<String, String>> getPaymentHash(@PathVariable UUID orderId) {
@@ -72,8 +82,24 @@ public class PaymentController {
 
             if ("2".equals(statusCode)) {
                 UUID orderId = UUID.fromString(orderIdStr);
-                escrowService.holdFunds(orderId);
-                System.out.println("✅ Payment verified & Escrow HELD for Order: " + orderId);
+                
+                // Check if it's a regular order
+                Order order = orderRepository.findById(orderId).orElse(null);
+                if (order != null) {
+                    escrowService.holdFunds(orderId);
+                    System.out.println("✅ Payment verified & Escrow HELD for Order: " + orderId);
+                } else {
+                    // Check if it's a farmershop order
+                    FarmershopOrder shopOrder = farmershopOrderRepository.findById(orderId).orElse(null);
+                    if (shopOrder != null) {
+                        // For farmershop orders, we don't use escrow holdFunds yet because the logic is different
+                        // But we can mark it as "PAID" or just log it for now.
+                        // Since status is already 'pending', it will show up in the seller's dashboard.
+                        System.out.println("✅ Payment verified for FarmerShop Order: " + orderId);
+                    } else {
+                        System.err.println("❌ Order ID " + orderIdStr + " not found in either repository!");
+                    }
+                }
             }
         } catch (Exception e) {
             System.err.println("❌ Webhook Error: " + e.getMessage());

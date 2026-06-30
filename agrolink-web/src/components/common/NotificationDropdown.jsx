@@ -68,6 +68,10 @@ export default function NotificationDropdown({ userId }) {
         // Navigate based on type
         if (notification.type === 'REQUEST_ALERT') {
             navigate('/farmer/requests'); // Assuming this is for farmer for now
+        } else if (notification.type === 'NEW_ORDER_FARMER') {
+            navigate('/farmer/orders');
+        } else if (notification.type === 'NEW_ORDER_SUPPLIER') {
+            navigate('/supplier/orders');
         } else if (notification.type === 'ORDER_UPDATE') {
             navigate('/my-orders');
         } else if (notification.type === 'CHAT_MESSAGE') {

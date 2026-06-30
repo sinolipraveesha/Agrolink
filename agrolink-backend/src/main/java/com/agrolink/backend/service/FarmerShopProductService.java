@@ -2,6 +2,7 @@ package com.agrolink.backend.service;
 
 import com.agrolink.backend.model.FarmerShopProduct;
 import com.agrolink.backend.repository.FarmerShopProductRepository;
+import com.agrolink.backend.repository.FarmershopOrderItemRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -42,7 +43,18 @@ public class FarmerShopProductService {
                 .orElse(null);
     }
 
+    @Autowired
+    private FarmershopOrderItemRepository orderItemRepository;
+
+    @jakarta.transaction.Transactional
     public void deleteProduct(UUID id) {
-        repository.deleteById(id);
+        repository.findById(id).ifPresent(product -> {
+            orderItemRepository.deleteByProduct(product);
+            repository.delete(product);
+        });
+    }
+    
+    public List<FarmerShopProduct> getProductsBySeller(UUID adminId) {
+        return repository.findByAdminId(adminId);
     }
 }
