@@ -1,3 +1,4 @@
+import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import joblib
@@ -68,5 +69,6 @@ def get_metadata():
     })
 
 if __name__ == '__main__':
-    # Using 5001 because some MacOS systems use 5000 for AirPlay
-    app.run(host='0.0.0.0', port=5001)
+    # Using dynamic PORT for cloud providers (like Railway) or 5001 locally
+    port = int(os.environ.get('PORT', 5001))
+    app.run(host='0.0.0.0', port=port)
