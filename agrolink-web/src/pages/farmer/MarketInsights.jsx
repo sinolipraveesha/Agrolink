@@ -21,8 +21,8 @@ export default function MarketInsights() {
     useEffect(() => {
         const fetchMetadata = async () => {
             try {
-                // Assuming AI service runs on same host but port 5001
-                const res = await axios.get('http://localhost:5001/metadata');
+                const aiUrl = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:5001';
+                const res = await axios.get(`${aiUrl}/metadata`);
                 setMetadata(res.data);
                 if (res.data.commodities.length > 0) {
                     setFormData(prev => ({ 
@@ -44,7 +44,8 @@ export default function MarketInsights() {
         e.preventDefault();
         setPredicting(true);
         try {
-            const res = await axios.post('http://localhost:5001/predict', formData);
+            const aiUrl = import.meta.env.VITE_AI_SERVICE_URL || 'http://localhost:5001';
+            const res = await axios.post(`${aiUrl}/predict`, formData);
             setPrediction(res.data);
         } catch (err) {
             console.error("Prediction failed", err);
