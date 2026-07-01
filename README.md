@@ -74,3 +74,30 @@ Configured a reliable e-commerce transaction gateway utilizing the **PayHere API
    ```bash
    git clone [https://github.com/sinolipraveesha/Agrolink.git](https://github.com/sinolipraveesha/Agrolink.git)
    cd Agrolink/agrolink-backend
+Configure your environment properties inside src/main/resources/application.properties:
+
+Properties
+spring.datasource.url=jdbc:postgresql://[aws-1-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=require](https://aws-1-ap-south-1.pooler.supabase.com:5432/postgres?sslmode=require)
+spring.datasource.username=postgres.wwcymxpjeqshbkllwkfj
+spring.datasource.password=#Sinolli199
+Compile and boot the application:
+
+Bash
+./mvnw spring-boot:run
+Frontend (React + Vite)
+Navigate to the frontend directory:
+
+Bash
+cd ../agrolink-web
+Create a .env file in the root of the folder and apply your API keys:
+
+Code snippet
+VITE_API_BASE_URL=http://localhost:8082
+VITE_SUPABASE_URL=[https://wwcymxpjeqshbkllwkfj.supabase.co](https://wwcymxpjeqshbkllwkfj.supabase.co)
+VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
+VITE_GEMINI_API_KEY=your-gemini-api-key
+Install the dependencies and spin up the development engine:
+
+Bash
+npm install
+npm run dev
